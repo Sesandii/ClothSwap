@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, User, Search, Heart, MessageSquare } from 'lucide-react';
-import { currentUser } from '../data/mockData';
+import { getStoredUser, logout } from '../lib/auth';
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const location = useLocation();
+  const currentUser = getStoredUser();
   const navLinks = [
-  {
-    name: 'Browse',
-    path: '/browse'
-  },
-  {
-    name: 'My Clothes',
-    path: '/my-clothes'
-  },
-  {
-    name: 'Swaps',
-    path: '/my-swaps'
-  }];
+    {
+      name: 'Browse',
+      path: '/browse'
+    },
+    {
+      name: 'My Clothes',
+      path: '/my-clothes'
+    },
+    {
+      name: 'Swaps',
+      path: '/my-swaps'
+    }];
 
   const isActive = (path: string) => location.pathname.startsWith(path);
   return (
@@ -34,11 +35,11 @@ export function Navbar() {
             </Link>
             <div className="hidden md:ml-10 md:flex md:space-x-8">
               {navLinks.map((link) =>
-              <Link
-                key={link.name}
-                to={link.path}
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${isActive(link.path) ? 'border-primary-500 text-warmGray-900' : 'border-transparent text-warmGray-500 hover:border-warmGray-300 hover:text-warmGray-700'}`}>
-                
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${isActive(link.path) ? 'border-primary-500 text-warmGray-900' : 'border-transparent text-warmGray-500 hover:border-warmGray-300 hover:text-warmGray-700'}`}>
+
                   {link.name}
                 </Link>
               )}
@@ -50,26 +51,26 @@ export function Navbar() {
             <Link
               to="/browse"
               className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors">
-              
+
               <Search size={20} />
             </Link>
             <Link
               to="/favorites"
               className="p-2 text-warmGray-400 hover:text-primary-500 transition-colors">
-              
+
               <Heart size={20} />
             </Link>
             <Link
               to="/chat"
               className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
-              
+
               <MessageSquare size={20} />
               <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
             </Link>
             <Link
               to="/notifications"
               className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
-              
+
               <Bell size={20} />
               <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
             </Link>
@@ -79,25 +80,25 @@ export function Navbar() {
               <div>
                 <button
                   onClick={() =>
-                  setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                    setIsProfileDropdownOpen(!isProfileDropdownOpen)
                   }
                   className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                  
+
                   <span className="sr-only">Open user menu</span>
                   <img
                     className="h-8 w-8 rounded-full object-cover border border-warmGray-200"
                     src={currentUser.avatar}
                     alt={currentUser.name} />
-                  
+
                 </button>
               </div>
 
               {isProfileDropdownOpen &&
-              <>
+                <>
                   <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setIsProfileDropdownOpen(false)}>
-                </div>
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsProfileDropdownOpen(false)}>
+                  </div>
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-xl shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-20">
                     <div className="px-4 py-2 border-b border-warmGray-100">
                       <p className="text-sm font-medium text-warmGray-900 truncate">
@@ -108,32 +109,35 @@ export function Navbar() {
                       </p>
                     </div>
                     <Link
-                    to="/dashboard"
-                    className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
-                    onClick={() => setIsProfileDropdownOpen(false)}>
-                    
+                      to="/dashboard"
+                      className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
+                      onClick={() => setIsProfileDropdownOpen(false)}>
+
                       Dashboard
                     </Link>
                     <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
-                    onClick={() => setIsProfileDropdownOpen(false)}>
-                    
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
+                      onClick={() => setIsProfileDropdownOpen(false)}>
+
                       Your Profile
                     </Link>
                     <Link
-                    to="/add-clothes"
-                    className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
-                    onClick={() => setIsProfileDropdownOpen(false)}>
-                    
+                      to="/add-clothes"
+                      className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
+                      onClick={() => setIsProfileDropdownOpen(false)}>
+
                       Add Clothes
                     </Link>
                     <div className="border-t border-warmGray-100"></div>
                     <Link
-                    to="/login"
-                    className="block px-4 py-2 text-sm text-primary-600 hover:bg-warmGray-50"
-                    onClick={() => setIsProfileDropdownOpen(false)}>
-                    
+                      to="/login"
+                      className="block px-4 py-2 text-sm text-primary-600 hover:bg-warmGray-50"
+                      onClick={() => {
+                        logout();
+                        setIsProfileDropdownOpen(false);
+                      }}>
+
                       Sign out
                     </Link>
                   </div>
@@ -144,7 +148,7 @@ export function Navbar() {
             <Link
               to="/add-clothes"
               className="ml-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
-              
+
               Upload
             </Link>
           </div>
@@ -154,12 +158,12 @@ export function Navbar() {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-warmGray-400 hover:text-warmGray-500 hover:bg-warmGray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500">
-              
+
               <span className="sr-only">Open main menu</span>
               {isMobileMenuOpen ?
-              <X className="block h-6 w-6" aria-hidden="true" /> :
+                <X className="block h-6 w-6" aria-hidden="true" /> :
 
-              <Menu className="block h-6 w-6" aria-hidden="true" />
+                <Menu className="block h-6 w-6" aria-hidden="true" />
               }
             </button>
           </div>
@@ -168,27 +172,27 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen &&
-      <div className="md:hidden bg-white border-b border-warmGray-200">
+        <div className="md:hidden bg-white border-b border-warmGray-200">
           <div className="pt-2 pb-3 space-y-1">
             {navLinks.map((link) =>
-          <Link
-            key={link.name}
-            to={link.path}
-            className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${isActive(link.path) ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-transparent text-warmGray-600 hover:bg-warmGray-50 hover:border-warmGray-300 hover:text-warmGray-800'}`}
-            onClick={() => setIsMobileMenuOpen(false)}>
-            
+              <Link
+                key={link.name}
+                to={link.path}
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${isActive(link.path) ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-transparent text-warmGray-600 hover:bg-warmGray-50 hover:border-warmGray-300 hover:text-warmGray-800'}`}
+                onClick={() => setIsMobileMenuOpen(false)}>
+
                 {link.name}
               </Link>
-          )}
+            )}
           </div>
           <div className="pt-4 pb-3 border-t border-warmGray-200">
             <div className="flex items-center px-4">
               <div className="flex-shrink-0">
                 <img
-                className="h-10 w-10 rounded-full object-cover"
-                src={currentUser.avatar}
-                alt={currentUser.name} />
-              
+                  className="h-10 w-10 rounded-full object-cover"
+                  src={currentUser.avatar}
+                  alt={currentUser.name} />
+
               </div>
               <div className="ml-3">
                 <div className="text-base font-medium text-warmGray-800">
@@ -199,39 +203,42 @@ export function Navbar() {
                 </div>
               </div>
               <Link
-              to="/notifications"
-              className="ml-auto flex-shrink-0 p-1 text-warmGray-400 hover:text-warmGray-500">
-              
+                to="/notifications"
+                className="ml-auto flex-shrink-0 p-1 text-warmGray-400 hover:text-warmGray-500">
+
                 <Bell size={24} />
               </Link>
             </div>
             <div className="mt-3 space-y-1">
               <Link
-              to="/dashboard"
-              className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
-              onClick={() => setIsMobileMenuOpen(false)}>
-              
+                to="/dashboard"
+                className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
+                onClick={() => setIsMobileMenuOpen(false)}>
+
                 Dashboard
               </Link>
               <Link
-              to="/profile"
-              className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
-              onClick={() => setIsMobileMenuOpen(false)}>
-              
+                to="/profile"
+                className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
+                onClick={() => setIsMobileMenuOpen(false)}>
+
                 Your Profile
               </Link>
               <Link
-              to="/add-clothes"
-              className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
-              onClick={() => setIsMobileMenuOpen(false)}>
-              
+                to="/add-clothes"
+                className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
+                onClick={() => setIsMobileMenuOpen(false)}>
+
                 Add Clothes
               </Link>
               <Link
-              to="/login"
-              className="block px-4 py-2 text-base font-medium text-primary-600 hover:text-primary-800 hover:bg-warmGray-50"
-              onClick={() => setIsMobileMenuOpen(false)}>
-              
+                to="/login"
+                className="block px-4 py-2 text-base font-medium text-primary-600 hover:text-primary-800 hover:bg-warmGray-50"
+                onClick={() => {
+                  logout();
+                  setIsMobileMenuOpen(false);
+                }}>
+
                 Sign out
               </Link>
             </div>
