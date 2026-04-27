@@ -1,0 +1,40 @@
+# Node modules
+**/node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.local
+.env.*.local
+.env.*
+
+# Build outputs
+dist/
+dist-ssr/
+.vite/
+build/
+out/
+
+# Uploaded assets (do not commit user uploads)
+backend/uploads/
+uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Misc
+*.local
