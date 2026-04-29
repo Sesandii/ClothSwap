@@ -1,99 +1,142 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Truck, Building, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { exchangeMethods, swapRequests, clothes } from '../data/mockData';
+import { apiFetch } from '../lib/api';
 import { StatusTimeline } from '../components/StatusTimeline';
+
+type ClothesItem = {
+  _id: string;
+  title: string;
+  images?: string[];
+};
+
+type ExchangeMethod = {
+  method?: 'meetup' | 'delivery' | 'collection';
+  details?: Record<string, string>;
+  confirmedAt?: string;
+};
+
+type SwapRequestItem = {
+  _id: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  offeredClothes: ClothesItem;
+  requestedClothes: ClothesItem;
+  exchangeMethod?: ExchangeMethod;
+};
+
+const placeholderImage =
+  'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
+
 export function ExchangeTracking() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const exchange = exchangeMethods.find((e) => e.swapRequestId === id);
-  const swap = swapRequests.find((s) => s.id === id);
-  if (!exchange || !swap) {
+  const [swap, setSwap] = useState<SwapRequestItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  useEffect(() => {
+    const loadSwap = async () => {
+      if (!id) return;
+
+      try {
+        setIsLoading(true);
+        const response = await apiFetch(`/api/swapRequests/${id}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to load exchange tracking');
+        }
+
+        setSwap(data);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to load exchange tracking');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadSwap();
+  }, [id]);
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-warmGray-500">Loading tracking...</div>;
+  }
+
+  if (!swap || !swap.exchangeMethod?.method) {
     return <div className="p-8 text-center">Tracking info not found.</div>;
   }
-  const requestedItem = clothes.find((c) => c.id === swap.requestedItemId);
-  const offeredItem = clothes.find((c) => c.id === swap.offeredItemId);
-  // Generate timeline steps based on method
+
+  const exchange = swap.exchangeMethod;
+  const details = exchange.details || {};
+
   const getTimelineSteps = () => {
+    const completed = swap.status === 'completed';
+
     if (exchange.method === 'meetup') {
       return [
-      {
-        label: 'Method Agreed',
-        completed: true
-      },
-      {
-        label: 'Meetup Scheduled',
-        description: `${exchange.details.date} at ${exchange.details.time}`,
-        completed: true
-      },
-      {
-        label: 'Met Up',
-        completed: false,
-        current: true
-      },
-      {
-        label: 'Swap Completed',
-        completed: false
-      }];
-
+        { label: 'Method Agreed', completed: true },
+        {
+          label: 'Meetup Scheduled',
+          description: [details.date, details.time].filter(Boolean).join(' at '),
+          completed: true
+        },
+        { label: 'Met Up', completed, current: !completed },
+        { label: 'Swap Completed', completed }
+      ];
     }
+
     if (exchange.method === 'delivery') {
       return [
-      {
-        label: 'Method Agreed',
-        completed: true
-      },
-      {
-        label: 'Waiting for Shipment',
-        completed: true
-      },
-      {
-        label: 'Shipped',
-        description: `Tracking: ${exchange.details.trackingNumber}`,
-        completed: true
-      },
-      {
-        label: 'In Transit',
-        completed: false,
-        current: true
-      },
-      {
-        label: 'Delivered',
-        completed: false
-      }];
-
+        { label: 'Method Agreed', completed: true },
+        { label: 'Shipment Details Added', completed: true },
+        {
+          label: 'In Transit',
+          description: details.trackingNumber ? `Tracking: ${details.trackingNumber}` : undefined,
+          completed,
+          current: !completed
+        },
+        { label: 'Swap Completed', completed }
+      ];
     }
-    return [
-    {
-      label: 'Method Agreed',
-      completed: true
-    },
-    {
-      label: 'Items Dropped Off',
-      completed: true
-    },
-    {
-      label: 'Items Collected',
-      completed: false,
-      current: true
-    },
-    {
-      label: 'Swap Completed',
-      completed: false
-    }];
 
+    return [
+      { label: 'Method Agreed', completed: true },
+      { label: 'Collection Point Selected', description: details.collectionPoint, completed: true },
+      { label: 'Items Exchanged', completed, current: !completed },
+      { label: 'Swap Completed', completed }
+    ];
   };
-  const handleComplete = () => {
-    toast.success('Swap marked as completed!');
-    navigate('/my-swaps');
+
+  const handleComplete = async () => {
+    try {
+      setIsCompleting(true);
+      const response = await apiFetch(`/api/swapRequests/${swap._id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'completed' })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to complete swap');
+      }
+
+      setSwap(data);
+      toast.success('Swap marked as completed!');
+      navigate('/reviews');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to complete swap');
+    } finally {
+      setIsCompleting(false);
+    }
   };
+
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center text-sm text-warmGray-500 hover:text-warmGray-900 mb-6">
-        
+        className="flex items-center text-sm text-warmGray-500 hover:text-warmGray-900 mb-6"
+      >
         <ArrowLeft size={16} className="mr-2" />
         Back
       </button>
@@ -107,18 +150,11 @@ export function ExchangeTracking() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
-          {/* Summary Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-warmGray-100">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-warmGray-100">
-              {exchange.method === 'meetup' &&
-              <MapPin className="text-primary-500" />
-              }
-              {exchange.method === 'delivery' &&
-              <Truck className="text-blue-500" />
-              }
-              {exchange.method === 'collection_point' &&
-              <Building className="text-secondary-600" />
-              }
+              {exchange.method === 'meetup' && <MapPin className="text-primary-500" />}
+              {exchange.method === 'delivery' && <Truck className="text-blue-500" />}
+              {exchange.method === 'collection' && <Building className="text-secondary-600" />}
               <h3 className="font-semibold text-warmGray-900 capitalize">
                 {exchange.method.replace('_', ' ')}
               </h3>
@@ -126,56 +162,35 @@ export function ExchangeTracking() {
 
             <div className="flex items-center justify-between">
               <img
-                src={offeredItem?.images[0]}
-                alt="Offered"
-                className="w-16 h-20 object-cover rounded-lg bg-warmGray-100" />
-              
+                src={swap.offeredClothes.images?.[0] || placeholderImage}
+                alt={swap.offeredClothes.title}
+                className="w-16 h-20 object-cover rounded-lg bg-warmGray-100"
+              />
               <ArrowLeft size={20} className="text-warmGray-300" />
-              <ArrowLeft
-                size={20}
-                className="text-warmGray-300 rotate-180 -ml-6" />
-              
+              <ArrowLeft size={20} className="text-warmGray-300 rotate-180 -ml-6" />
               <img
-                src={requestedItem?.images[0]}
-                alt="Requested"
-                className="w-16 h-20 object-cover rounded-lg bg-warmGray-100" />
-              
+                src={swap.requestedClothes.images?.[0] || placeholderImage}
+                alt={swap.requestedClothes.title}
+                className="w-16 h-20 object-cover rounded-lg bg-warmGray-100"
+              />
             </div>
           </div>
 
-          {/* Details Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-warmGray-100">
             <h3 className="font-semibold text-warmGray-900 mb-4">Details</h3>
             <div className="space-y-3 text-sm">
-              {exchange.method === 'meetup' &&
-              <>
-                  <p>
-                    <span className="text-warmGray-500">Location:</span>{' '}
-                    {exchange.details.location}
-                  </p>
-                  <p>
-                    <span className="text-warmGray-500">Date & Time:</span>{' '}
-                    {exchange.details.date} at {exchange.details.time}
-                  </p>
-                </>
-              }
-              {exchange.method === 'delivery' &&
-              <>
-                  <p>
-                    <span className="text-warmGray-500">Courier:</span>{' '}
-                    {exchange.details.courier}
-                  </p>
-                  <p>
-                    <span className="text-warmGray-500">Tracking:</span>{' '}
-                    {exchange.details.trackingNumber}
-                  </p>
-                </>
-              }
+              {Object.entries(details).filter(([, value]) => value).map(([key, value]) => (
+                <p key={key}>
+                  <span className="text-warmGray-500 capitalize">
+                    {key.replace(/([A-Z])/g, ' $1')}:
+                  </span>{' '}
+                  {value}
+                </p>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Timeline */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-warmGray-100">
           <h3 className="font-semibold text-warmGray-900 mb-6">Status</h3>
           <StatusTimeline steps={getTimelineSteps()} />
@@ -185,18 +200,19 @@ export function ExchangeTracking() {
       <div className="mt-8 flex flex-col sm:flex-row gap-4">
         <button
           onClick={() => navigate('/complaints')}
-          className="flex-1 py-3 border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors flex items-center justify-center">
-          
+          className="flex-1 py-3 border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors flex items-center justify-center"
+        >
           <AlertTriangle size={18} className="mr-2" />
           Report Issue
         </button>
         <button
           onClick={handleComplete}
-          className="flex-1 py-3 bg-secondary-500 text-white rounded-xl font-medium hover:bg-secondary-600 transition-colors">
-          
-          Mark as Completed
+          disabled={swap.status === 'completed' || isCompleting}
+          className="flex-1 py-3 bg-secondary-500 text-white rounded-xl font-medium hover:bg-secondary-600 transition-colors disabled:opacity-50"
+        >
+          {swap.status === 'completed' ? 'Completed' : isCompleting ? 'Completing...' : 'Mark as Completed'}
         </button>
       </div>
-    </div>);
-
+    </div>
+  );
 }

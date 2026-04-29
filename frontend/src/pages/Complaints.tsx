@@ -1,39 +1,112 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  complaints,
-  swapRequests,
-  clothes,
-  currentUser,
-  users } from
-'../data/mockData';
+import { apiFetch } from '../lib/api';
 import { StatusBadge } from '../components/StatusBadge';
+
+type ClothesItem = {
+  _id: string;
+  title: string;
+};
+
+type SwapRequestItem = {
+  _id: string;
+  offeredClothes?: ClothesItem;
+  requestedClothes?: ClothesItem;
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  createdAt: string;
+};
+
+type ComplaintItem = {
+  _id: string;
+  swapRequest?: SwapRequestItem;
+  type: string;
+  description: string;
+  status: 'pending' | 'investigating' | 'resolved';
+  createdAt: string;
+};
+
+const issueTypes = [
+  ['fake_item', 'Fake/Counterfeit Item'],
+  ['damaged_item', 'Item Damaged/Not as Described'],
+  ['wrong_item', 'Received Wrong Item'],
+  ['delivery_not_received', 'Delivery Not Received'],
+  ['user_no_show', 'User Did Not Show Up'],
+  ['bad_behavior', 'Inappropriate Behavior']
+];
+
 export function Complaints() {
   const [swapId, setSwapId] = useState('');
   const [type, setType] = useState('');
   const [description, setDescription] = useState('');
-  // Get user's swaps for the dropdown
-  const mySwaps = swapRequests.filter(
-    (s) =>
-    s.requesterId === currentUser.id ||
-    clothes.find((c) => c.id === s.requestedItemId)?.ownerId ===
-    currentUser.id
-  );
-  const myComplaints = complaints.filter((c) => c.userId === currentUser.id);
-  const handleSubmit = (e: React.FormEvent) => {
+  const [mySwaps, setMySwaps] = useState<SwapRequestItem[]>([]);
+  const [myComplaints, setMyComplaints] = useState<ComplaintItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadComplaintsData = async () => {
+    try {
+      setIsLoading(true);
+      const [swapsResponse, complaintsResponse] = await Promise.all([
+        apiFetch('/api/swapRequests/mine'),
+        apiFetch('/api/complaints/mine')
+      ]);
+      const swapsData = await swapsResponse.json();
+      const complaintsData = await complaintsResponse.json();
+
+      if (!swapsResponse.ok || !complaintsResponse.ok) {
+        throw new Error(swapsData.message || complaintsData.message || 'Unable to load reports');
+      }
+
+      setMySwaps(swapsData);
+      setMyComplaints(complaintsData);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to load reports');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadComplaintsData();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!swapId || !type || !description) {
+
+    if (!swapId || !type || !description.trim()) {
       toast.error('Please fill in all fields');
       return;
     }
-    toast.success(
-      'Complaint submitted successfully. Our team will review it shortly.'
-    );
-    setSwapId('');
-    setType('');
-    setDescription('');
+
+    try {
+      setIsSubmitting(true);
+      const response = await apiFetch('/api/complaints', {
+        method: 'POST',
+        body: JSON.stringify({
+          swapRequest: swapId,
+          type,
+          description
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to submit report');
+      }
+
+      setMyComplaints((current) => [data, ...current]);
+      toast.success('Report submitted successfully. Our team will review it shortly.');
+      setSwapId('');
+      setType('');
+      setDescription('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to submit report');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
@@ -46,7 +119,6 @@ export function Complaints() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* File Complaint Form */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-warmGray-100 sticky top-24">
             <div className="flex items-center gap-2 mb-6 text-red-600">
@@ -55,105 +127,91 @@ export function Complaints() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-warmGray-700 mb-1">
-                  Related Swap
-                </label>
+              <label className="block text-sm font-medium text-warmGray-700">
+                Related Swap
                 <select
                   value={swapId}
                   onChange={(e) => setSwapId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-warmGray-300 focus:ring-primary-500 focus:border-primary-500 text-sm">
-                  
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-warmGray-300 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
                   <option value="">Select a swap...</option>
-                  {mySwaps.map((swap) => {
-                    const reqItem = clothes.find(
-                      (c) => c.id === swap.requestedItemId
-                    );
-                    return (
-                      <option key={swap.id} value={swap.id}>
-                        Swap: {reqItem?.title} (
-                        {new Date(swap.createdAt).toLocaleDateString()})
-                      </option>);
-
-                  })}
+                  {mySwaps.map((swap) => (
+                    <option key={swap._id} value={swap._id}>
+                      {swap.requestedClothes?.title || 'Swap'} - {swap.status} (
+                      {new Date(swap.createdAt).toLocaleDateString()})
+                    </option>
+                  ))}
                 </select>
-              </div>
+              </label>
 
-              <div>
-                <label className="block text-sm font-medium text-warmGray-700 mb-1">
-                  Issue Type
-                </label>
+              <label className="block text-sm font-medium text-warmGray-700">
+                Issue Type
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-warmGray-300 focus:ring-primary-500 focus:border-primary-500 text-sm">
-                  
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-warmGray-300 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
                   <option value="">Select issue type...</option>
-                  <option value="fake_item">Fake/Counterfeit Item</option>
-                  <option value="damaged_item">
-                    Item Damaged/Not as Described
-                  </option>
-                  <option value="wrong_item">Received Wrong Item</option>
-                  <option value="delivery_not_received">
-                    Delivery Not Received
-                  </option>
-                  <option value="user_no_show">User Did Not Show Up</option>
-                  <option value="bad_behavior">Inappropriate Behavior</option>
+                  {issueTypes.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
-              </div>
+              </label>
 
-              <div>
-                <label className="block text-sm font-medium text-warmGray-700 mb-1">
-                  Description
-                </label>
+              <label className="block text-sm font-medium text-warmGray-700">
+                Description
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   placeholder="Please provide details about the issue..."
-                  className="w-full px-3 py-2 rounded-lg border border-warmGray-300 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none" />
-                
-              </div>
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-warmGray-300 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"
+                />
+              </label>
 
               <button
                 type="submit"
-                className="w-full py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
-                
-                Submit Report
+                disabled={isSubmitting}
+                className="w-full py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Report'}
               </button>
             </form>
           </div>
         </div>
 
-        {/* My Complaints List */}
         <div className="lg:col-span-2">
           <h2 className="text-xl font-semibold text-warmGray-900 mb-4">
             My Reports
           </h2>
 
-          {myComplaints.length === 0 ?
-          <div className="bg-white rounded-2xl p-8 text-center border border-warmGray-100">
-              <p className="text-warmGray-500">
-                You haven't filed any reports.
-              </p>
-            </div> :
-
-          <div className="space-y-4">
-              {myComplaints.map((complaint) =>
-            <div
-              key={complaint.id}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-warmGray-100">
-              
+          {isLoading ? (
+            <div className="bg-white rounded-2xl p-8 text-center border border-warmGray-100 text-warmGray-500">
+              Loading reports...
+            </div>
+          ) : myComplaints.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center border border-warmGray-100">
+              <p className="text-warmGray-500">You have not filed any reports.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {myComplaints.map((complaint) => (
+                <div
+                  key={complaint._id}
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-warmGray-100"
+                >
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 mb-2">
-                        {complaint.type.
-                    replace(/_/g, ' ').
-                    replace(/\b\w/g, (l) => l.toUpperCase())}
+                        {formatType(complaint.type)}
                       </span>
                       <p className="text-xs text-warmGray-400">
-                        Filed on{' '}
-                        {new Date(complaint.createdAt).toLocaleDateString()}
+                        Filed on {new Date(complaint.createdAt).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-warmGray-500 mt-1">
+                        Swap: {complaint.swapRequest?.requestedClothes?.title || 'Related swap'}
                       </p>
                     </div>
                     <StatusBadge status={complaint.status} />
@@ -162,11 +220,15 @@ export function Complaints() {
                     {complaint.description}
                   </p>
                 </div>
-            )}
+              ))}
             </div>
-          }
+          )}
         </div>
       </div>
-    </div>);
+    </div>
+  );
+}
 
+function formatType(value: string) {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

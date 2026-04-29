@@ -45,7 +45,7 @@ const createClothesItem = async (req, res) => {
 
 const getAllClothes = async (req, res) => {
   try {
-    const clothes = await Clothes.find()
+    const clothes = await Clothes.find({ status: "available" })
       .populate("user", "name location profilePic")
       .sort({ createdAt: -1 });
 

@@ -6,6 +6,16 @@ const swapRequestSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  offeredOwner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  requestedOwner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
   offeredClothes: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Clothes",
@@ -26,6 +36,18 @@ const swapRequestSchema = new mongoose.Schema({
     enum: ["pending", "accepted", "rejected", "completed"],
     default: "pending",
   },
+  exchangeMethod: {
+    method: {
+      type: String,
+      enum: ["meetup", "delivery", "collection"],
+    },
+    details: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    confirmedAt: Date,
+  },
+  completedAt: Date,
   createdAt: {
     type: Date,
     default: Date.now,

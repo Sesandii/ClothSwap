@@ -23,6 +23,12 @@ type ClothesItem = {
   user?: ClothesUser | string;
 };
 
+type SwapSummary = {
+  _id: string;
+  offeredClothes?: ClothesItem;
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+};
+
 const placeholderImage =
   'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
 
@@ -55,13 +61,18 @@ export function SwapRequest() {
       try {
         setIsLoading(true);
 
-        const [requestedResponse, myClothesResponse] = await Promise.all([
+        const [requestedResponse, myClothesResponse, swapsResponse] = await Promise.all([
           apiFetch(`/api/clothes/${id}`, {
             headers: {
               Authorization: `Bearer ${token}`
             }
           }),
           apiFetch('/api/clothes/me', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }),
+          apiFetch('/api/swapRequests/mine', {
             headers: {
               Authorization: `Bearer ${token}`
             }
@@ -74,12 +85,19 @@ export function SwapRequest() {
           return;
         }
 
-        if (!requestedResponse.ok || !myClothesResponse.ok) {
+        if (!requestedResponse.ok || !myClothesResponse.ok || !swapsResponse.ok) {
           throw new Error('Unable to load swap request details');
         }
 
         const requestedData = (await requestedResponse.json()) as ClothesItem;
         const myClothesData = (await myClothesResponse.json()) as ClothesItem[];
+        const swapsData = (await swapsResponse.json()) as SwapSummary[];
+        const alreadyOfferedIds = new Set(
+          swapsData
+            .filter((swap) => ['pending', 'accepted'].includes(swap.status))
+            .map((swap) => swap.offeredClothes?._id)
+            .filter(Boolean)
+        );
         const requestedOwner =
           typeof requestedData.user === 'object' && requestedData.user
             ? requestedData.user._id
@@ -93,7 +111,12 @@ export function SwapRequest() {
 
         setRequestedItem(requestedData);
         setMyAvailableClothes(
-          myClothesData.filter((item) => item.status === 'available' && item._id !== requestedData._id)
+          myClothesData.filter(
+            (item) =>
+              item.status === 'available' &&
+              item._id !== requestedData._id &&
+              !alreadyOfferedIds.has(item._id)
+          )
         );
       } catch (error) {
         toast.error(
@@ -250,7 +273,7 @@ export function SwapRequest() {
               {myAvailableClothes.length === 0 ? (
                 <div className="text-center py-8 bg-warmGray-50 rounded-xl border border-dashed border-warmGray-200">
                   <p className="text-warmGray-500 mb-4">
-                    You do not have any available items to swap.
+                    You do not have any available items that are not already offered in an active swap.
                   </p>
                   <button
                     type="button"
