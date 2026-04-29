@@ -97,8 +97,43 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+const updateUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Only allow updating specific fields (email cannot be changed)
+    const { name, phone, location, profilePic, address } = req.body;
+
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (location !== undefined) user.location = location;
+    if (profilePic !== undefined) user.profilePic = profilePic;
+    if (address !== undefined) user.address = address;
+
+    const updated = await user.save();
+
+    return res.json({
+      _id: updated._id,
+      name: updated.name,
+      email: updated.email,
+      phone: updated.phone,
+      location: updated.location,
+      profilePic: updated.profilePic,
+      address: updated.address,
+      createdAt: updated.createdAt,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getCurrentUser,
+  updateUser,
 };

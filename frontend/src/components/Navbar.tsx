@@ -2,6 +2,33 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, User, Search, Heart, MessageSquare } from 'lucide-react';
 import { getAuthenticatedUser, getStoredToken, logout } from '../lib/auth';
+
+const isRealProfilePic = (value?: string | null) => {
+  if (!value) return false;
+
+  const trimmed = value.trim();
+
+  return (
+    trimmed.length > 0 &&
+    trimmed !== 'default_profile_pic_url' &&
+    !trimmed.includes('ui-avatars.com/api/')
+  );
+};
+
+const getInitials = (name?: string) => {
+  const trimmedName = (name || '').trim();
+
+  if (!trimmedName) return '?';
+
+  return trimmedName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+};
+
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -86,10 +113,16 @@ export function Navbar() {
                       className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
 
                       <span className="sr-only">Open user menu</span>
-                      <img
-                        className="h-8 w-8 rounded-full object-cover border border-warmGray-200"
-                        src={currentUser.avatar}
-                        alt={currentUser.name} />
+                      {isRealProfilePic(currentUser.profilePic || currentUser.avatar) ? (
+                        <img
+                          className="h-8 w-8 rounded-full object-cover border border-warmGray-200 bg-white"
+                          src={currentUser.profilePic || currentUser.avatar}
+                          alt={currentUser.name} />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full border border-warmGray-200 bg-primary-500 text-white flex items-center justify-center text-xs font-semibold">
+                          {getInitials(currentUser.name)}
+                        </div>
+                      )}
 
                     </button>
                   </div>
@@ -206,10 +239,16 @@ export function Navbar() {
             <div className="pt-4 pb-3 border-t border-warmGray-200">
               <div className="flex items-center px-4">
                 <div className="flex-shrink-0">
-                  <img
-                    className="h-10 w-10 rounded-full object-cover"
-                    src={currentUser.avatar}
-                    alt={currentUser.name} />
+                  {isRealProfilePic(currentUser.profilePic || currentUser.avatar) ? (
+                    <img
+                      className="h-10 w-10 rounded-full object-cover bg-white"
+                      src={currentUser.profilePic || currentUser.avatar}
+                      alt={currentUser.name} />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-primary-500 text-white flex items-center justify-center text-sm font-semibold">
+                      {getInitials(currentUser.name)}
+                    </div>
+                  )}
 
                 </div>
                 <div className="ml-3">

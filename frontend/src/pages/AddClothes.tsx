@@ -24,6 +24,59 @@ type ClothesItemResponse = {
   } | string;
 };
 
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1200;
+const IMAGE_QUALITY = 0.82;
+
+const readResponseJson = async <T,>(response: Response): Promise<T | null> => {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+};
+
+const compressImage = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const scale = Math.min(
+        1,
+        MAX_IMAGE_DIMENSION / Math.max(image.width, image.height)
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        reject(new Error('Unable to process image'));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', IMAGE_QUALITY));
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Unable to read image'));
+    };
+
+    image.src = objectUrl;
+  });
+
 export function AddClothes() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -110,31 +163,35 @@ export function AddClothes() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     const remainingSlots = 4 - images.length;
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const processedImages: string[] = [];
 
-    filesToProcess.forEach((file) => {
+    for (const file of filesToProcess) {
       if (!file.type.startsWith('image/')) {
         toast.error('Only image files are allowed');
-        return;
+        continue;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
         toast.error('Image must be less than 5MB');
-        return;
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64String = event.target?.result as string;
-        setImages((prev) => [...prev, base64String]);
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        processedImages.push(await compressImage(file));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to process image');
+      }
+    }
+
+    if (processedImages.length > 0) {
+      setImages((prev) => [...prev, ...processedImages].slice(0, 4));
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -181,10 +238,10 @@ export function AddClothes() {
         }
       );
 
-      const data = await response.json();
+      const data = await readResponseJson<{ message?: string }>(response);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Unable to save item');
+        throw new Error(data?.message || 'Unable to save item');
       }
 
       toast.success(isEditMode ? 'Item updated successfully!' : 'Item listed successfully!', {

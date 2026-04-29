@@ -193,8 +193,8 @@ export function ClothesDetails() {
                                     key={index}
                                     onClick={() => setSelectedImage(index)}
                                     className={`aspect-square w-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
-                                            ? 'border-primary-500 scale-105'
-                                            : 'border-transparent hover:border-warmGray-300'
+                                        ? 'border-primary-500 scale-105'
+                                        : 'border-transparent hover:border-warmGray-300'
                                         }`}
                                 >
                                     <img
@@ -310,12 +310,22 @@ export function ClothesDetails() {
                                 Edit Item
                             </Link>
                         ) : (
-                            <Link
-                                to={`/swap-request/${item._id}`}
-                                className="flex-1 bg-primary-500 text-white py-4 rounded-xl font-medium hover:bg-primary-600 transition-colors text-center shadow-sm hover:shadow-md"
-                            >
-                                Request Swap
-                            </Link>
+                            <>
+                                <Link
+                                    to={`/swap-request/${item._id}`}
+                                    className="flex-1 bg-primary-500 text-white py-4 rounded-xl font-medium hover:bg-primary-600 transition-colors text-center shadow-sm hover:shadow-md"
+                                >
+                                    Request Swap
+                                </Link>
+                                {owner?._id && (
+                                    <Link
+                                        to={`/chat/${owner._id}`}
+                                        className="flex-1 bg-white border border-warmGray-200 text-warmGray-700 py-4 rounded-xl font-medium hover:bg-warmGray-50 transition-colors text-center shadow-sm hover:shadow-md"
+                                    >
+                                        Message Seller
+                                    </Link>
+                                )}
+                            </>
                         )}
                     </div>
                 </motion.div>

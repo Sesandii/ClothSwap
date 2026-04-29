@@ -60,6 +60,25 @@ export async function getFavorites() {
     });
 }
 
+// User endpoints
+export async function getCurrentUser() {
+    const res = await apiFetch('/api/users/me', { method: 'GET' });
+    return res;
+}
+
+export async function updateCurrentUser(payload: Record<string, any>) {
+    const res = await apiFetch('/api/users/me', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+    return res;
+}
+
+// Clothes endpoints
+export async function getMyClothes() {
+    return apiFetch('/api/clothes/me', { method: 'GET' });
+}
+
 export async function checkIsFavorited(clothesId: string) {
     return apiFetch(`/api/favorites/check/${clothesId}`, {
         method: 'GET',
@@ -69,5 +88,25 @@ export async function checkIsFavorited(clothesId: string) {
 export async function removeFavorite(clothesId: string) {
     return apiFetch(`/api/favorites/${clothesId}`, {
         method: 'DELETE',
+    });
+}
+
+// Messages endpoints
+export async function getMessageConversations() {
+    return apiFetch('/api/messages/conversations', {
+        method: 'GET',
+    });
+}
+
+export async function getConversationWithUser(userId: string) {
+    return apiFetch(`/api/messages/conversations/${userId}`, {
+        method: 'GET',
+    });
+}
+
+export async function sendMessageToUser(userId: string, text: string) {
+    return apiFetch(`/api/messages/conversations/${userId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ text }),
     });
 }

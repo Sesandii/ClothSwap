@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
@@ -230,6 +230,13 @@ export function SwapRequest() {
                 <p className="text-warmGray-500">{itemOwner.location}</p>
               </div>
             </div>
+
+            <Link
+              to={`/chat/${itemOwner._id}`}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-warmGray-200 bg-white px-4 py-2.5 text-sm font-medium text-warmGray-700 transition-colors hover:bg-warmGray-50"
+            >
+              Message owner
+            </Link>
           </div>
         </div>
 
@@ -259,11 +266,10 @@ export function SwapRequest() {
                     <div
                       key={item._id}
                       onClick={() => setSelectedItemId(item._id)}
-                      className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all ${
-                        selectedItemId === item._id
+                      className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all ${selectedItemId === item._id
                           ? 'border-primary-500 shadow-md'
                           : 'border-transparent hover:border-warmGray-200'
-                      }`}
+                        }`}
                     >
                       <img
                         src={item.images?.[0] || placeholderImage}

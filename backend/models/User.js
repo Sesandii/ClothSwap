@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema({
     type: String, // For storing the URL of the profile image
     default: "default_profile_pic_url",
   },
+  address: {
+    type: String,
+    required: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

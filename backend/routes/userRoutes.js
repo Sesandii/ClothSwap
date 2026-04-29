@@ -8,10 +8,12 @@ const {
   registerUser,
   loginUser,
   getCurrentUser,
+  updateUser,
 } = require("../controllers/userController");
 
 router.post("/register", validateUserInput, registerUser);
 router.post("/login", loginUser);
 router.get("/me", authMiddleware, getCurrentUser);
+router.put("/me", authMiddleware, updateUser);
 
 module.exports = router;

@@ -69,7 +69,7 @@ export function App() {
                 path="exchange-tracking/:id"
                 element={<ExchangeTracking />} />
 
-              <Route path="chat" element={<Chat />} />
+              <Route path="chat/:userId?" element={<Chat />} />
               <Route path="favorites" element={<Favorites />} />
               <Route path="profile" element={<Profile />} />
               <Route path="reviews" element={<Reviews />} />

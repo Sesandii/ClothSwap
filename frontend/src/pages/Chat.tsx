@@ -1,32 +1,246 @@
-import React, { useState } from 'react';
-import { Search, Send, ArrowLeft } from 'lucide-react';
-import { conversations, currentUser, users, clothes } from '../data/mockData';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Search, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import { getConversationWithUser, getMessageConversations, sendMessageToUser } from '../lib/api';
+import { getAuthenticatedUser } from '../lib/auth';
+
+type UserSummary = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  location?: string;
+  profilePic?: string;
+  avatar?: string;
+};
+
+type MessageRecord = {
+  _id?: string;
+  sender?: UserSummary | string;
+  text: string;
+  createdAt: string;
+};
+
+type ConversationRecord = {
+  _id?: string;
+  participantKey?: string;
+  participants?: UserSummary[];
+  otherParticipant?: UserSummary;
+  messages?: MessageRecord[];
+  lastMessage?: MessageRecord | null;
+  lastMessageAt?: string;
+};
+
+const isRealImage = (value?: string | null) => {
+  if (!value) return false;
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 && trimmed !== 'default_profile_pic_url';
+};
+
+const getUserId = (user?: UserSummary) => String(user?._id || user?.id || '');
+
+const getPartner = (conversation: ConversationRecord, currentUserId: string) => {
+  if (conversation.otherParticipant) {
+    return conversation.otherParticipant;
+  }
+
+  return conversation.participants?.find((participant) => getUserId(participant) !== currentUserId);
+};
+
+const getAvatar = (user?: UserSummary) => {
+  const name = user?.name?.trim() || 'User';
+  const picture = user?.profilePic || user?.avatar;
+
+  if (isRealImage(picture)) {
+    return picture as string;
+  }
+
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7da17d&color=fff`;
+};
+
+const formatTime = (value?: string) => {
+  if (!value) return '';
+
+  return new Date(value).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getConversationTimestamp = (conversation: ConversationRecord) => {
+  const lastMessage =
+    conversation.lastMessage || conversation.messages?.[conversation.messages.length - 1];
+
+  return new Date(
+    lastMessage?.createdAt || conversation.lastMessageAt || 0
+  ).getTime();
+};
+
 export function Chat() {
-  const [activeChatId, setActiveChatId] = useState<string | null>(
-    conversations[0]?.id || null
-  );
+  const navigate = useNavigate();
+  const { userId } = useParams<{ userId?: string }>();
+  const currentUser = getAuthenticatedUser();
+  const currentUserId = String(currentUser?._id || currentUser?.id || '');
+
+  const [conversations, setConversations] = useState<ConversationRecord[]>([]);
+  const [activeConversation, setActiveConversation] = useState<ConversationRecord | null>(null);
   const [messageInput, setMessageInput] = useState('');
-  const [showListOnMobile, setShowListOnMobile] = useState(true);
-  const activeChat = conversations.find((c) => c.id === activeChatId);
-  const otherUserId = activeChat?.participants.find(
-    (id) => id !== currentUser.id
-  );
-  const otherUser = users.find((u) => u.id === otherUserId);
-  // Mock related item (just grabbing first item of other user for demo)
-  const relatedItem = clothes.find((c) => c.ownerId === otherUserId);
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageInput.trim()) return;
-    setMessageInput('');
-    // In real app, send message to backend
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [showListOnMobile, setShowListOnMobile] = useState(!userId);
+
+  useEffect(() => {
+    setShowListOnMobile(!userId);
+  }, [userId]);
+
+  const refreshConversations = async (selectedUserId?: string) => {
+    const listResponse = await getMessageConversations();
+
+    if (!listResponse.ok) {
+      throw new Error('Failed to load messages');
+    }
+
+    const listData = (await listResponse.json()) as ConversationRecord[];
+    setConversations(listData);
+
+    if (selectedUserId) {
+      const detailResponse = await getConversationWithUser(selectedUserId);
+
+      if (!detailResponse.ok) {
+        const errorData = await detailResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to load conversation');
+      }
+
+      const detailData = (await detailResponse.json()) as ConversationRecord;
+      setActiveConversation(detailData);
+
+      const selectedPartnerId = getUserId(getPartner(detailData, currentUserId));
+
+      setConversations((current) => {
+        const exists = current.some(
+          (conversation) => getUserId(getPartner(conversation, currentUserId)) === selectedPartnerId
+        );
+        const next = exists
+          ? current.map((conversation) =>
+              getUserId(getPartner(conversation, currentUserId)) === selectedPartnerId
+                ? detailData
+                : conversation
+            )
+          : [...current, detailData];
+
+        return next.sort((first, second) => {
+          return getConversationTimestamp(second) - getConversationTimestamp(first);
+        });
+      });
+      return;
+    }
+
+    setActiveConversation(null);
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setIsLoading(true);
+        await refreshConversations(userId);
+      } catch (error) {
+        if (!mounted) return;
+        toast.error(error instanceof Error ? error.message : 'Unable to load messages');
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
+
+  const filteredConversations = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return conversations;
+    }
+
+    return conversations.filter((conversation) => {
+      const partner = getPartner(conversation, currentUserId);
+      const lastMessage = conversation.lastMessage || conversation.messages?.[conversation.messages.length - 1];
+      const haystack = [partner?.name, partner?.location, lastMessage?.text]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+  }, [conversations, currentUserId, searchTerm]);
+
+  const handleOpenConversation = (conversation: ConversationRecord) => {
+    const partner = getPartner(conversation, currentUserId);
+    const partnerId = getUserId(partner);
+
+    if (!partnerId) {
+      return;
+    }
+
+    setActiveConversation(conversation);
+    setShowListOnMobile(false);
+    navigate(`/chat/${partnerId}`);
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!messageInput.trim() || !userId) {
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      const response = await sendMessageToUser(userId, messageInput.trim());
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to send message');
+      }
+
+      const conversation = (await response.json()) as ConversationRecord;
+      setActiveConversation(conversation);
+      setMessageInput('');
+
+      const partnerId = getUserId(getPartner(conversation, currentUserId));
+
+      setConversations((current) => {
+        const next = current.filter(
+          (existing) => getUserId(getPartner(existing, currentUserId)) !== partnerId
+        );
+
+        return [conversation, ...next];
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send message');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const selectedPartner = activeConversation
+    ? getPartner(activeConversation, currentUserId)
+    : undefined;
+  const threadMessages = activeConversation?.messages || [];
+
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8 h-[calc(100vh-80px)]">
       <div className="bg-white rounded-2xl shadow-sm border border-warmGray-100 h-full flex overflow-hidden">
-        {/* Sidebar (List) */}
         <div
-          className={`${!showListOnMobile && 'hidden md:flex'} w-full md:w-80 border-r border-warmGray-100 flex-col h-full`}>
-          
+          className={`${!showListOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-warmGray-100 flex-col h-full`}>
           <div className="p-4 border-b border-warmGray-100">
             <h2 className="text-xl font-serif font-bold text-warmGray-900 mb-4">
               Messages
@@ -35,156 +249,149 @@ export function Chat() {
               <Search
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-warmGray-400" />
-              
               <input
                 type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search messages..."
                 className="w-full pl-10 pr-4 py-2 bg-warmGray-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20" />
-              
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {conversations.map((conv) => {
-              const partnerId = conv.participants.find(
-                (id) => id !== currentUser.id
-              );
-              const partner = users.find((u) => u.id === partnerId);
-              const lastMsg = conv.messages[conv.messages.length - 1];
-              return (
-                <div
-                  key={conv.id}
-                  onClick={() => {
-                    setActiveChatId(conv.id);
-                    setShowListOnMobile(false);
-                  }}
-                  className={`p-4 border-b border-warmGray-50 cursor-pointer transition-colors flex items-start gap-3 ${activeChatId === conv.id ? 'bg-primary-50/50' : 'hover:bg-warmGray-50'}`}>
-                  
-                  <img
-                    src={partner?.avatar}
-                    alt={partner?.name}
-                    className="w-12 h-12 rounded-full" />
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <h4 className="font-medium text-warmGray-900 truncate">
-                        {partner?.name}
-                      </h4>
-                      <span className="text-xs text-warmGray-400 shrink-0 ml-2">
-                        {new Date(lastMsg.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-warmGray-500 truncate">
-                      {lastMsg.text}
-                    </p>
-                  </div>
-                </div>);
+            {isLoading ? (
+              <div className="p-4 text-sm text-warmGray-500">Loading conversations...</div>
+            ) : filteredConversations.length > 0 ? (
+              filteredConversations.map((conversation) => {
+                const partner = getPartner(conversation, currentUserId);
+                const lastMessage = conversation.lastMessage || conversation.messages?.[conversation.messages.length - 1];
+                const partnerId = getUserId(partner);
 
-            })}
+                return (
+                  <button
+                    key={conversation._id || partnerId}
+                    type="button"
+                    onClick={() => handleOpenConversation(conversation)}
+                    className={`w-full p-4 border-b border-warmGray-50 transition-colors flex items-start gap-3 text-left ${userId === partnerId ? 'bg-primary-50/50' : 'hover:bg-warmGray-50'}`}>
+                    <img
+                      src={getAvatar(partner)}
+                      alt={partner?.name || 'User'}
+                      className="w-12 h-12 rounded-full object-cover bg-warmGray-100" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-1 gap-2">
+                        <h4 className="font-medium text-warmGray-900 truncate">
+                          {partner?.name || 'Unknown User'}
+                        </h4>
+                        <span className="text-xs text-warmGray-400 shrink-0 ml-2">
+                          {formatTime(lastMessage?.createdAt || conversation.lastMessageAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-warmGray-500 truncate">
+                        {lastMessage?.text || 'No messages yet'}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="p-4 text-sm text-warmGray-500">
+                No conversations yet. Open a profile or item to start one.
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Chat Area */}
         <div
-          className={`${showListOnMobile && 'hidden md:flex'} flex-1 flex flex-col h-full bg-warmGray-50/30`}>
-          
-          {activeChat && otherUser ?
-          <>
-              {/* Chat Header */}
+          className={`${showListOnMobile ? 'hidden md:flex' : 'flex'} flex-1 flex flex-col h-full bg-warmGray-50/30`}>
+          {selectedPartner && activeConversation ? (
+            <>
               <div className="p-4 bg-white border-b border-warmGray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <button
-                  onClick={() => setShowListOnMobile(true)}
-                  className="md:hidden p-2 -ml-2 text-warmGray-500">
-                  
+                    onClick={() => {
+                      setShowListOnMobile(true);
+                      navigate('/chat');
+                    }}
+                    className="md:hidden p-2 -ml-2 text-warmGray-500">
                     <ArrowLeft size={20} />
                   </button>
                   <img
-                  src={otherUser.avatar}
-                  alt={otherUser.name}
-                  className="w-10 h-10 rounded-full" />
-                
-                  <div>
-                    <h3 className="font-medium text-warmGray-900">
-                      {otherUser.name}
+                    src={getAvatar(selectedPartner)}
+                    alt={selectedPartner.name || 'User'}
+                    className="w-10 h-10 rounded-full object-cover bg-warmGray-100" />
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-warmGray-900 truncate">
+                      {selectedPartner.name}
                     </h3>
-                    <p className="text-xs text-warmGray-500">
-                      {otherUser.location}
+                    <p className="text-xs text-warmGray-500 truncate">
+                      {selectedPartner.location || 'Online'}
                     </p>
                   </div>
                 </div>
-
-                {relatedItem &&
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-warmGray-50 rounded-lg border border-warmGray-100">
-                    <img
-                  src={relatedItem.images[0]}
-                  alt="Item"
-                  className="w-8 h-8 rounded object-cover" />
-                
-                    <span className="text-xs font-medium text-warmGray-700 truncate max-w-[100px]">
-                      {relatedItem.title}
-                    </span>
-                  </div>
-              }
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {activeChat.messages.map((msg) => {
-                const isMe = msg.senderId === currentUser.id;
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    
-                      <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2 ${isMe ? 'bg-primary-500 text-white rounded-tr-sm' : 'bg-white border border-warmGray-100 text-warmGray-900 rounded-tl-sm'}`}>
-                      
-                        <p className="text-sm">{msg.text}</p>
-                        <span
-                        className={`text-[10px] mt-1 block ${isMe ? 'text-primary-100' : 'text-warmGray-400'}`}>
-                        
-                          {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                        </span>
-                      </div>
-                    </div>);
+                {threadMessages.length > 0 ? (
+                  threadMessages.map((message, index) => {
+                    const senderId = typeof message.sender === 'string'
+                      ? message.sender
+                      : getUserId(message.sender);
+                    const isMe = senderId === currentUserId;
 
-              })}
+                    return (
+                      <div
+                        key={message._id || `${message.createdAt}-${index}`}
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <div
+                          className={`max-w-[75%] rounded-2xl px-4 py-2 ${isMe ? 'bg-primary-500 text-white rounded-tr-sm' : 'bg-white border border-warmGray-100 text-warmGray-900 rounded-tl-sm'}`}>
+                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                          <span
+                            className={`text-[10px] mt-1 block ${isMe ? 'text-primary-100' : 'text-warmGray-400'}`}>
+                            {formatTime(message.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="h-full flex items-center justify-center text-warmGray-400 text-sm">
+                    No messages yet. Send the first one.
+                  </div>
+                )}
               </div>
 
-              {/* Input */}
               <div className="p-4 bg-white border-t border-warmGray-100">
                 <form onSubmit={handleSend} className="flex gap-2">
                   <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 px-4 py-2 bg-warmGray-50 border border-warmGray-200 rounded-full text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
-                
+                    type="text"
+                    value={messageInput}
+                    onChange={(event) => setMessageInput(event.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 px-4 py-2 bg-warmGray-50 border border-warmGray-200 rounded-full text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
                   <button
-                  type="submit"
-                  disabled={!messageInput.trim()}
-                  className="p-2 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition-colors disabled:opacity-50">
-                  
+                    type="submit"
+                    disabled={!messageInput.trim() || isSending}
+                    className="p-2 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition-colors disabled:opacity-50">
                     <Send size={18} className="ml-0.5" />
                   </button>
                 </form>
               </div>
-            </> :
-
-          <div className="flex-1 flex items-center justify-center text-warmGray-400">
-              Select a conversation to start chatting
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-warmGray-400 text-center px-6">
+              <div>
+                <p className="font-medium text-warmGray-700 mb-2">Select a conversation to start chatting</p>
+                <p className="text-sm text-warmGray-500 mb-4">
+                  Messages are saved per two-user thread and will show here when the conversation is opened.
+                </p>
+                <Link to="/browse" className="text-primary-600 hover:text-primary-700 font-medium">
+                  Browse items
+                </Link>
+              </div>
             </div>
-          }
+          )}
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
