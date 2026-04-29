@@ -1,6 +1,7 @@
 const SwapRequest = require("../models/SwapRequest");
 const Clothes = require("../models/Clothes");
 const User = require("../models/User");
+const createNotification = require("../utils/createNotification");
 
 const swapRequestPopulation = [
   {
@@ -68,6 +69,20 @@ const createSwapRequest = async (req, res) => {
     const populatedSwapRequest = await SwapRequest.findById(savedSwapRequest._id)
       .populate(swapRequestPopulation)
       .exec();
+
+    await createNotification({
+      user: requestedItem.user,
+      actor: req.user,
+      type: "swap_request",
+      title: "New Swap Request",
+      message: `${requester.name || "Someone"} wants to swap for ${requestedItem.title}.`,
+      link: "/my-swaps",
+      metadata: {
+        swapRequest: savedSwapRequest._id,
+        offeredClothes,
+        requestedClothes,
+      },
+    });
 
     return res.status(201).json(populatedSwapRequest || savedSwapRequest);
   } catch (err) {

@@ -110,3 +110,28 @@ export async function sendMessageToUser(userId: string, text: string) {
         body: JSON.stringify({ text }),
     });
 }
+
+// Notifications endpoints
+export async function getNotifications() {
+    return apiFetch('/api/notifications', {
+        method: 'GET',
+    });
+}
+
+export async function getUnreadNotificationCount() {
+    return apiFetch('/api/notifications/unread-count', {
+        method: 'GET',
+    });
+}
+
+export async function markNotificationRead(notificationId: string) {
+    return apiFetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+    });
+}
+
+export async function markAllNotificationsRead() {
+    return apiFetch('/api/notifications/read-all', {
+        method: 'PATCH',
+    });
+}

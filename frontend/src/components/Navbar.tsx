@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, User, Search, Heart, MessageSquare } from 'lucide-react';
 import { getAuthenticatedUser, getStoredToken, logout } from '../lib/auth';
+import { getUnreadNotificationCount } from '../lib/api';
 
 const isRealProfilePic = (value?: string | null) => {
   if (!value) return false;
@@ -32,6 +33,7 @@ const getInitials = (name?: string) => {
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const location = useLocation();
   const isLoggedIn = Boolean(getStoredToken());
   const currentUser = getAuthenticatedUser();
@@ -49,6 +51,39 @@ export function Navbar() {
     }] : [])];
 
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setUnreadNotifications(0);
+      return;
+    }
+
+    const loadUnreadNotifications = async () => {
+      try {
+        const response = await getUnreadNotificationCount();
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { count?: number };
+        setUnreadNotifications(data.count || 0);
+      } catch {
+        setUnreadNotifications(0);
+      }
+    };
+
+    void loadUnreadNotifications();
+    window.addEventListener('clothswap:notifications-updated', loadUnreadNotifications);
+
+    return () => {
+      window.removeEventListener('clothswap:notifications-updated', loadUnreadNotifications);
+    };
+  }, [isLoggedIn, location.pathname]);
+
+  const notificationBadge =
+    unreadNotifications > 9 ? '9+' : unreadNotifications > 0 ? String(unreadNotifications) : '';
+
   return (
     <nav className="bg-white border-b border-warmGray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -101,7 +136,11 @@ export function Navbar() {
                   className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
 
                   <Bell size={20} />
-                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
+                  {notificationBadge && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-primary-500 ring-2 ring-white text-[10px] font-semibold text-white flex items-center justify-center">
+                      {notificationBadge}
+                    </span>
+                  )}
                 </Link>
 
                 <div className="ml-3 relative">
@@ -261,9 +300,14 @@ export function Navbar() {
                 </div>
                 <Link
                   to="/notifications"
-                  className="ml-auto flex-shrink-0 p-1 text-warmGray-400 hover:text-warmGray-500">
+                  className="ml-auto flex-shrink-0 p-1 text-warmGray-400 hover:text-warmGray-500 relative">
 
                   <Bell size={24} />
+                  {notificationBadge && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-primary-500 ring-2 ring-white text-[10px] font-semibold text-white flex items-center justify-center">
+                      {notificationBadge}
+                    </span>
+                  )}
                 </Link>
               </div>
               <div className="mt-3 space-y-1">

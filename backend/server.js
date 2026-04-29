@@ -22,12 +22,14 @@ const clothesRoutes = require("./routes/clothesRoutes");
 const swapRequestRoutes = require("./routes/swapRequestRoutes");
 const favoritesRoutes = require("./routes/favoritesRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/clothes", clothesRoutes);
 app.use("/api/swapRequests", swapRequestRoutes);
 app.use("/api/favorites", favoritesRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use((err, req, res, next) => {
   if (err.type === "entity.too.large") {

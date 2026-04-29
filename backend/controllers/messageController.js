@@ -1,5 +1,6 @@
 const Conversation = require("../models/Conversation");
 const User = require("../models/User");
+const createNotification = require("../utils/createNotification");
 
 const conversationPopulation = [
     {
@@ -118,7 +119,10 @@ const sendMessage = async (req, res) => {
             return res.status(400).json({ message: "You cannot message yourself" });
         }
 
-        const otherUser = await User.findById(userId).select("_id");
+        const [otherUser, sender] = await Promise.all([
+            User.findById(userId).select("_id"),
+            User.findById(req.user).select("name"),
+        ]);
 
         if (!otherUser) {
             return res.status(404).json({ message: "User not found" });
@@ -146,6 +150,19 @@ const sendMessage = async (req, res) => {
         const savedConversation = await conversation.save();
         const populatedConversation = await Conversation.findById(savedConversation._id)
             .populate(conversationPopulation);
+
+        await createNotification({
+            user: userId,
+            actor: req.user,
+            type: "new_message",
+            title: "New Message",
+            message: `${sender?.name || "Someone"} sent you a message.`,
+            link: `/chat/${req.user}`,
+            metadata: {
+                conversation: savedConversation._id,
+                message: savedConversation.messages[savedConversation.messages.length - 1]?._id,
+            },
+        });
 
         return res.status(201).json(normalizeConversation(populatedConversation, req.user));
     } catch (err) {
