@@ -52,6 +52,7 @@ export function App() {
             <Route path="browse" element={<BrowseClothes />} />
             <Route path="clothes/:id" element={<ClothesDetails />} />
             <Route path="add-clothes" element={<AddClothes />} />
+            <Route path="edit-clothes/:id" element={<AddClothes />} />
             <Route path="my-clothes" element={<MyClothes />} />
             <Route path="swap-request/:id" element={<SwapRequest />} />
             <Route path="my-swaps" element={<MySwapRequests />} />

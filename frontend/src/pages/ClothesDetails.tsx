@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { StatusBadge } from '../components/StatusBadge';
 import { ClothesCard } from '../components/ClothesCard';
 import { apiFetch } from '../lib/api';
+import { getStoredUser } from '../lib/auth';
 
 type ClothesUser = {
     _id?: string;
@@ -155,6 +156,8 @@ export function ClothesDetails() {
     const owner = typeof item.user === 'object' ? item.user : undefined;
     const itemImages =
         item.images && item.images.length > 0 ? item.images : [placeholderImage];
+    const currentUser = getStoredUser();
+    const isOwner = Boolean(currentUser._id && owner?._id && currentUser._id === owner._id);
 
     const toggleFavorite = () => {
         setIsFavorite((current) => !current);
@@ -299,12 +302,21 @@ export function ClothesDetails() {
                     )}
 
                     <div className="flex gap-3">
-                        <Link
-                            to={`/swap-request/${item._id}`}
-                            className="flex-1 bg-primary-500 text-white py-4 rounded-xl font-medium hover:bg-primary-600 transition-colors text-center shadow-sm hover:shadow-md"
-                        >
-                            Request Swap
-                        </Link>
+                        {isOwner ? (
+                            <Link
+                                to={`/edit-clothes/${item._id}`}
+                                className="flex-1 bg-secondary-500 text-white py-4 rounded-xl font-medium hover:bg-secondary-600 transition-colors text-center shadow-sm hover:shadow-md"
+                            >
+                                Edit Item
+                            </Link>
+                        ) : (
+                            <Link
+                                to={`/swap-request/${item._id}`}
+                                className="flex-1 bg-primary-500 text-white py-4 rounded-xl font-medium hover:bg-primary-600 transition-colors text-center shadow-sm hover:shadow-md"
+                            >
+                                Request Swap
+                            </Link>
+                        )}
                     </div>
                 </motion.div>
             </div>

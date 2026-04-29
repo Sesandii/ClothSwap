@@ -4,7 +4,7 @@ Quick start and dev notes for the backend service.
 
 Prerequisites
 - Node.js (16+ recommended)
-- MongoDB (local or remote) — set `MONGO_URI` in `backend/.env`
+- MongoDB (local or remote) — set `DATABASE_URL` in `backend/.env`
 
 Setup
 1. Install dependencies:
@@ -22,7 +22,7 @@ Running
 Seeding sample data
 ```bash
 cd backend
-# run the seed script (will connect to DB using MONGO_URI)
+# run the seed script (will connect to DB using DATABASE_URL)
 node seeds/seed.js
 ```
 

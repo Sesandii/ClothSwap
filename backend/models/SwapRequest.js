@@ -16,6 +16,11 @@ const swapRequestSchema = new mongoose.Schema({
     ref: "Clothes",
     required: true,
   },
+  message: {
+    type: String,
+    default: "",
+    trim: true,
+  },
   status: {
     type: String,
     enum: ["pending", "accepted", "rejected", "completed"],
