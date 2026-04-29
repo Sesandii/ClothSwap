@@ -8,32 +8,10 @@ import {
   users
 } from
   '../data/mockData';
-import { getAuthenticatedUser } from '../lib/auth';
+import { getAuthenticatedUser, getAvatarUrl, getInitials, isRealProfilePic } from '../lib/auth';
 import { getCurrentUser, updateCurrentUser, getMyClothes } from '../lib/api';
 import { StatusBadge } from '../components/StatusBadge';
 type TabType = 'edit' | 'history' | 'reviews';
-const PLACEHOLDER_PROFILE_PIC = 'default_profile_pic_url';
-
-const isRealProfilePic = (value?: string | null) => {
-  if (!value) return false;
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed !== PLACEHOLDER_PROFILE_PIC;
-};
-
-const getInitials = (name?: string) => {
-  const trimmedName = (name || '').trim();
-
-  if (!trimmedName) return '?';
-
-  return trimmedName
-    .split(/\s+/)
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-};
 
 export function Profile() {
   const [activeTab, setActiveTab] = useState<TabType>('edit');
@@ -400,7 +378,7 @@ export function Profile() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <img
-                          src={reviewer?.avatar}
+                          src={getAvatarUrl(reviewer)}
                           alt=""
                           className="w-10 h-10 rounded-full" />
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
-import { getStoredUser } from '../lib/auth';
+import { getAvatarUrl, getStoredUser } from '../lib/auth';
 
 type UserRef = {
   _id: string;
@@ -36,9 +36,6 @@ type ReviewItem = {
   comment?: string;
   createdAt: string;
 };
-
-const placeholderImage =
-  'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
 
 const getUserId = () => getStoredUser()._id || getStoredUser().id || '';
 
@@ -170,7 +167,7 @@ export function Reviews() {
                       >
                         <div className="flex items-center gap-4">
                           <img
-                            src={otherUser?.profilePic || placeholderImage}
+                            src={getAvatarUrl(otherUser)}
                             alt={otherUser?.name || 'User'}
                             className="w-10 h-10 rounded-full object-cover"
                           />
@@ -258,7 +255,7 @@ export function Reviews() {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <img
-                            src={review.reviewee?.profilePic || placeholderImage}
+                            src={getAvatarUrl(review.reviewee)}
                             alt={review.reviewee?.name || 'User'}
                             className="w-8 h-8 rounded-full object-cover"
                           />

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { StatusBadge } from '../components/StatusBadge';
 import { ClothesCard } from '../components/ClothesCard';
 import { apiFetch } from '../lib/api';
-import { getStoredUser } from '../lib/auth';
+import { getAvatarUrl, getStoredUser } from '../lib/auth';
 
 type ClothesUser = {
     _id?: string;
@@ -286,7 +286,7 @@ export function ClothesDetails() {
                             <h3 className="font-semibold text-warmGray-900 mb-4">Listed by</h3>
                             <div className="flex items-center gap-4 mb-4">
                                 <img
-                                    src={owner.profilePic || placeholderImage}
+                                    src={getAvatarUrl(owner)}
                                     alt={owner.name || 'User'}
                                     className="w-16 h-16 rounded-full object-cover"
                                 />

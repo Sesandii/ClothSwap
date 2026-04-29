@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
-import { getStoredToken, getStoredUser } from '../lib/auth';
+import { getAvatarUrl, getStoredToken, getStoredUser } from '../lib/auth';
 
 type ClothesUser = {
   _id?: string;
@@ -243,7 +243,7 @@ export function SwapRequest() {
             </div>
             <div className="pt-4 border-t border-warmGray-100 flex items-center gap-3">
               <img
-                src={itemOwner.profilePic || placeholderImage}
+                src={getAvatarUrl(itemOwner)}
                 alt={itemOwner.name || 'User'}
                 className="w-8 h-8 rounded-full"
               />

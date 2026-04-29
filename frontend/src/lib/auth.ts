@@ -13,8 +13,54 @@ export type StoredUser = {
 
 const TOKEN_KEY = 'clothswap_token';
 const USER_KEY = 'clothswap_user';
+export const DEFAULT_PROFILE_PIC = 'default_profile_pic_url';
 
 const isBrowser = typeof window !== 'undefined';
+
+export const isRealProfilePic = (value?: string | null) => {
+    if (!value) {
+        return false;
+    }
+
+    const trimmed = value.trim();
+
+    return trimmed.length > 0 && trimmed !== DEFAULT_PROFILE_PIC;
+};
+
+export const getInitials = (name?: string) => {
+    const trimmedName = (name || '').trim();
+
+    if (!trimmedName) return '?';
+
+    return trimmedName
+        .split(/\s+/)
+        .map((part) => part[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
+};
+
+export const getInitialsAvatarUrl = (name?: string, background = 'e8786f') =>
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(name?.trim() || 'User')}&background=${background}&color=fff`;
+
+export const getAvatarUrl = (
+    user?: { name?: string; profilePic?: string; avatar?: string } | null,
+    background = 'e8786f'
+) => {
+    const profilePic = user?.profilePic;
+    const avatar = user?.avatar;
+
+    if (isRealProfilePic(profilePic)) {
+        return profilePic as string;
+    }
+
+    if (isRealProfilePic(avatar)) {
+        return avatar as string;
+    }
+
+    return getInitialsAvatarUrl(user?.name, background);
+};
 
 const normalizeToken = (value: string | null) => {
     if (!value) {
@@ -69,10 +115,7 @@ export function getStoredUser(): StoredUser {
         return {
             ...currentUser,
             ...parsed,
-            avatar:
-                parsed.avatar ||
-                parsed.profilePic ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=e8786f&color=fff`
+            avatar: getAvatarUrl({ ...parsed, name })
         };
     } catch {
         return currentUser;
@@ -92,10 +135,7 @@ export function getAuthenticatedUser(): StoredUser | null {
 
         return {
             ...parsed,
-            avatar:
-                parsed.avatar ||
-                parsed.profilePic ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=e8786f&color=fff`
+            avatar: getAvatarUrl({ ...parsed, name })
         };
     } catch {
         return null;

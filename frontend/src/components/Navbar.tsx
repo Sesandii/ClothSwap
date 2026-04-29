@@ -1,34 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Bell, User, Search, Heart, MessageSquare } from 'lucide-react';
-import { getAuthenticatedUser, getStoredToken, logout } from '../lib/auth';
+import { Menu, X, Bell, Search, Heart, MessageSquare } from 'lucide-react';
+import { getAuthenticatedUser, getInitials, getStoredToken, isRealProfilePic, logout } from '../lib/auth';
 import { getUnreadNotificationCount } from '../lib/api';
-
-const isRealProfilePic = (value?: string | null) => {
-  if (!value) return false;
-
-  const trimmed = value.trim();
-
-  return (
-    trimmed.length > 0 &&
-    trimmed !== 'default_profile_pic_url' &&
-    !trimmed.includes('ui-avatars.com/api/')
-  );
-};
-
-const getInitials = (name?: string) => {
-  const trimmedName = (name || '').trim();
-
-  if (!trimmedName) return '?';
-
-  return trimmedName
-    .split(/\s+/)
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-};
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

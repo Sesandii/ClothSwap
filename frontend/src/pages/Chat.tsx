@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Search, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { getConversationWithUser, getMessageConversations, sendMessageToUser } from '../lib/api';
-import { getAuthenticatedUser } from '../lib/auth';
+import { getAuthenticatedUser, getAvatarUrl } from '../lib/auth';
 
 type UserSummary = {
   _id?: string;
@@ -31,14 +31,6 @@ type ConversationRecord = {
   lastMessageAt?: string;
 };
 
-const isRealImage = (value?: string | null) => {
-  if (!value) return false;
-
-  const trimmed = value.trim();
-
-  return trimmed.length > 0 && trimmed !== 'default_profile_pic_url';
-};
-
 const getUserId = (user?: UserSummary) => String(user?._id || user?.id || '');
 
 const getPartner = (conversation: ConversationRecord, currentUserId: string) => {
@@ -49,16 +41,7 @@ const getPartner = (conversation: ConversationRecord, currentUserId: string) => 
   return conversation.participants?.find((participant) => getUserId(participant) !== currentUserId);
 };
 
-const getAvatar = (user?: UserSummary) => {
-  const name = user?.name?.trim() || 'User';
-  const picture = user?.profilePic || user?.avatar;
-
-  if (isRealImage(picture)) {
-    return picture as string;
-  }
-
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7da17d&color=fff`;
-};
+const getAvatar = (user?: UserSummary) => getAvatarUrl(user, '7da17d');
 
 const formatTime = (value?: string) => {
   if (!value) return '';

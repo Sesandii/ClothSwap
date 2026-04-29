@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowRightLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
-import { getStoredUser } from '../lib/auth';
+import { getAvatarUrl, getStoredUser } from '../lib/auth';
 import { StatusBadge } from '../components/StatusBadge';
 
 type UserRef = {
@@ -215,7 +215,7 @@ export function MySwapRequests() {
                 <div className="flex flex-col items-center md:items-end gap-4 w-full md:w-auto border-t md:border-t-0 md:border-l border-warmGray-100 pt-4 md:pt-0 md:pl-6">
                   <div className="flex items-center gap-3">
                     <img
-                      src={otherUser?.profilePic || placeholderImage}
+                      src={getAvatarUrl(otherUser)}
                       alt={otherUser?.name || 'User'}
                       className="w-8 h-8 rounded-full object-cover"
                     />
