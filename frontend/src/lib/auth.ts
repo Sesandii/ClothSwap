@@ -1,6 +1,7 @@
 import { currentUser } from '../data/mockData';
 
 export type StoredUser = {
+    id?: string;
     _id?: string;
     name: string;
     email: string;
@@ -15,15 +16,44 @@ const USER_KEY = 'clothswap_user';
 
 const isBrowser = typeof window !== 'undefined';
 
+const normalizeToken = (value: string | null) => {
+    if (!value) {
+        return null;
+    }
+
+    const token = value.trim();
+
+    if (!token || token === 'null' || token === 'undefined') {
+        return null;
+    }
+
+    return token;
+};
+
 export function saveAuth(token: string, user: StoredUser) {
     if (!isBrowser) return;
-    window.localStorage.setItem(TOKEN_KEY, token);
+
+    const normalizedToken = normalizeToken(token);
+
+    if (!normalizedToken) {
+        return;
+    }
+
+    window.localStorage.setItem(TOKEN_KEY, normalizedToken);
     window.localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function getStoredToken() {
     if (!isBrowser) return null;
-    return window.localStorage.getItem(TOKEN_KEY);
+
+    const token = normalizeToken(window.localStorage.getItem(TOKEN_KEY));
+
+    if (!token) {
+        window.localStorage.removeItem(TOKEN_KEY);
+        return null;
+    }
+
+    return token;
 }
 
 export function getStoredUser(): StoredUser {
@@ -46,6 +76,29 @@ export function getStoredUser(): StoredUser {
         };
     } catch {
         return currentUser;
+    }
+}
+
+export function getAuthenticatedUser(): StoredUser | null {
+    if (!isBrowser) return null;
+    if (!getStoredToken()) return null;
+
+    const rawUser = window.localStorage.getItem(USER_KEY);
+    if (!rawUser) return null;
+
+    try {
+        const parsed = JSON.parse(rawUser) as StoredUser;
+        const name = parsed.name || currentUser.name;
+
+        return {
+            ...parsed,
+            avatar:
+                parsed.avatar ||
+                parsed.profilePic ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=e8786f&color=fff`
+        };
+    } catch {
+        return null;
     }
 }
 

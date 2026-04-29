@@ -1,6 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { getStoredToken } from './lib/auth';
 // Layouts
 import { UserLayout } from './layouts/UserLayout';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -34,11 +35,16 @@ import { ExchangeManagement } from './pages/admin/ExchangeManagement';
 import { ComplaintManagement } from './pages/admin/ComplaintManagement';
 import { FeedbackManagement } from './pages/admin/FeedbackManagement';
 import { AdminSettings } from './pages/admin/AdminSettings';
+
+function RequireAuth() {
+  return getStoredToken() ? <Outlet /> : <Navigate to="/login" replace />;
+}
+
 export function App() {
   return (
     <>
       <Toaster position="top-center" richColors />
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           {/* Auth Routes (no layout) */}
           <Route path="/login" element={<Login />} />
@@ -48,25 +54,28 @@ export function App() {
           {/* User Routes */}
           <Route path="/" element={<UserLayout />}>
             <Route index element={<Landing />} />
-            <Route path="dashboard" element={<Dashboard />} />
             <Route path="browse" element={<BrowseClothes />} />
             <Route path="clothes/:id" element={<ClothesDetails />} />
-            <Route path="add-clothes" element={<AddClothes />} />
-            <Route path="edit-clothes/:id" element={<AddClothes />} />
-            <Route path="my-clothes" element={<MyClothes />} />
-            <Route path="swap-request/:id" element={<SwapRequest />} />
-            <Route path="my-swaps" element={<MySwapRequests />} />
-            <Route path="exchange/:id" element={<ExchangeMethod />} />
-            <Route
-              path="exchange-tracking/:id"
-              element={<ExchangeTracking />} />
-            
-            <Route path="chat" element={<Chat />} />
-            <Route path="favorites" element={<Favorites />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="reviews" element={<Reviews />} />
-            <Route path="complaints" element={<Complaints />} />
-            <Route path="notifications" element={<Notifications />} />
+
+            <Route element={<RequireAuth />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="add-clothes" element={<AddClothes />} />
+              <Route path="edit-clothes/:id" element={<AddClothes />} />
+              <Route path="my-clothes" element={<MyClothes />} />
+              <Route path="swap-request/:id" element={<SwapRequest />} />
+              <Route path="my-swaps" element={<MySwapRequests />} />
+              <Route path="exchange/:id" element={<ExchangeMethod />} />
+              <Route
+                path="exchange-tracking/:id"
+                element={<ExchangeTracking />} />
+
+              <Route path="chat" element={<Chat />} />
+              <Route path="favorites" element={<Favorites />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="reviews" element={<Reviews />} />
+              <Route path="complaints" element={<Complaints />} />
+              <Route path="notifications" element={<Notifications />} />
+            </Route>
           </Route>
 
           {/* Admin Routes */}
@@ -81,6 +90,8 @@ export function App() {
             <Route path="feedback" element={<FeedbackManagement />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </>);

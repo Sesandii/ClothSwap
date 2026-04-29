@@ -8,7 +8,8 @@ import {
     genders,
     conditions
 } from '../data/mockData';
-import { apiFetch } from '../lib/api';
+import { apiFetch, toggleFavorite } from '../lib/api';
+import { getStoredToken, getStoredUser } from '../lib/auth';
 
 type ClothesUser = {
     name?: string;
@@ -44,6 +45,7 @@ type BrowseItem = {
     location: string;
     images: string[];
     createdAt: string;
+    userId: string;
 };
 
 const placeholderImage =
@@ -76,6 +78,7 @@ export function BrowseClothes() {
 
                 const normalizedItems = data.map((item) => {
                     const user = typeof item.user === 'object' ? item.user : undefined;
+                    const userId = typeof item.user === 'object' ? item.user?._id : item.user;
 
                     return {
                         id: item._id,
@@ -88,7 +91,8 @@ export function BrowseClothes() {
                         description: item.description,
                         location: item.location || user?.location || 'Online',
                         images: item.images && item.images.length > 0 ? item.images : [placeholderImage],
-                        createdAt: item.createdAt
+                        createdAt: item.createdAt,
+                        userId: userId || ''
                     };
                 });
 
@@ -100,7 +104,24 @@ export function BrowseClothes() {
             }
         };
 
+        const loadFavorites = async () => {
+            const token = getStoredToken();
+            if (!token) return;
+
+            try {
+                const response = await apiFetch('/api/favorites');
+                if (response.ok) {
+                    const favorites = (await response.json()) as ClothesRecord[];
+                    const favoriteIds = favorites.map((item) => item._id);
+                    setFavoritedItems(favoriteIds);
+                }
+            } catch (err) {
+                console.error('Error loading favorites:', err);
+            }
+        };
+
         loadClothes();
+        loadFavorites();
     }, []);
 
     const filteredClothes = useMemo(() => {
@@ -191,11 +212,20 @@ export function BrowseClothes() {
         (selectedGender ? 1 : 0) +
         (locationFilter ? 1 : 0);
 
-    const toggleFavorite = (id: string, e: React.MouseEvent) => {
+    const handleToggleFavorite = async (id: string, e: React.MouseEvent) => {
         e.preventDefault();
-        setFavoritedItems((prev) =>
-            prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id]
-        );
+        try {
+            const response = await toggleFavorite(id);
+            const data = (await response.json()) as { isFavorite: boolean };
+
+            if (response.ok) {
+                setFavoritedItems((prev) =>
+                    data.isFavorite ? [...prev, id] : prev.filter((fid) => fid !== id)
+                );
+            }
+        } catch (err) {
+            console.error('Error toggling favorite:', err);
+        }
     };
 
     return (
@@ -464,19 +494,25 @@ export function BrowseClothes() {
                     }}
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-                    {filteredClothes.map((item) => (
-                        <ClothesCard
-                            key={item.id}
-                            id={item.id}
-                            title={item.title}
-                            brand={item.brand}
-                            size={item.size}
-                            condition={item.condition}
-                            location={item.location}
-                            imageUrl={item.images[0]}
-                            isFavorite={favoritedItems.includes(item.id)}
-                            onFavoriteToggle={(e) => toggleFavorite(item.id, e)} />
-                    ))}
+                    {filteredClothes.map((item) => {
+                        const currentUser = getStoredUser();
+                        const isOwnItem = item.userId === (currentUser.id || currentUser._id);
+
+                        return (
+                            <ClothesCard
+                                key={item.id}
+                                id={item.id}
+                                title={item.title}
+                                brand={item.brand}
+                                size={item.size}
+                                condition={item.condition}
+                                location={item.location}
+                                imageUrl={item.images[0]}
+                                isFavorite={favoritedItems.includes(item.id)}
+                                isOwnItem={isOwnItem}
+                                onFavoriteToggle={(e) => handleToggleFavorite(item.id, e)} />
+                        );
+                    })}
                 </motion.div>
             ) : (
                 <div className="text-center py-16">

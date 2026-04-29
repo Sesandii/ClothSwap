@@ -1,4 +1,4 @@
-export const currentUser = {
+﻿export const currentUser = {
   id: 'u1',
   name: 'Emma Chamberlain',
   email: 'emma@example.com',

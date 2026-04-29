@@ -1,5 +1,5 @@
-import React, { Children } from 'react';
-import { Link } from 'react-router-dom';
+import React, { Children, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -7,11 +7,21 @@ import {
   RefreshCw,
   HeartHandshake,
   ArrowRight,
-  Star } from
-'lucide-react';
+  Star
+} from
+  'lucide-react';
 import { clothes } from '../data/mockData';
 import { ClothesCard } from '../components/ClothesCard';
+import { getStoredToken } from '../lib/auth';
 export function Landing() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (getStoredToken()) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   const featuredClothes = clothes.slice(0, 4);
   const containerVariants = {
     hidden: {
@@ -59,7 +69,7 @@ export function Landing() {
               transition={{
                 duration: 0.6
               }}>
-              
+
               <span className="inline-block py-1 px-3 rounded-full bg-primary-50 text-primary-600 text-sm font-medium mb-6 border border-primary-100">
                 Sustainable Fashion Community
               </span>
@@ -79,14 +89,14 @@ export function Landing() {
                 <Link
                   to="/register"
                   className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-full text-white bg-primary-500 hover:bg-primary-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1">
-                  
-                  Start Swapping
+
+                  Sign Up
                 </Link>
                 <Link
-                  to="/browse"
+                  to="/login"
                   className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-full text-warmGray-700 bg-white border border-warmGray-200 hover:bg-warmGray-50 hover:border-warmGray-300 transition-all shadow-sm">
-                  
-                  Browse Clothes
+
+                  Log In
                 </Link>
               </div>
             </motion.div>
@@ -106,7 +116,7 @@ export function Landing() {
                 delay: 0.2
               }}
               className="max-w-2xl mx-auto bg-white p-2 rounded-full shadow-lg border border-warmGray-100 flex items-center">
-              
+
               <div className="pl-4 text-warmGray-400">
                 <Search size={20} />
               </div>
@@ -114,7 +124,7 @@ export function Landing() {
                 type="text"
                 placeholder="Search for vintage jackets, summer dresses..."
                 className="w-full py-3 px-4 bg-transparent border-none focus:outline-none text-warmGray-800 placeholder-warmGray-400" />
-              
+
               <button className="bg-secondary-500 hover:bg-secondary-600 text-white px-6 py-3 rounded-full font-medium transition-colors">
                 Search
               </button>
@@ -145,46 +155,46 @@ export function Landing() {
               margin: '-100px'
             }}
             className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
-            
+
             {/* Connecting line for desktop */}
             <div className="hidden md:block absolute top-12 left-[10%] right-[10%] h-0.5 bg-warmGray-200 z-0"></div>
 
             {[
-            {
-              icon: Upload,
-              title: '1. Upload',
-              desc: 'Snap photos of clothes you no longer wear and add them to your closet.'
-            },
-            {
-              icon: Search,
-              title: '2. Browse',
-              desc: 'Explore thousands of items from other users in the community.'
-            },
-            {
-              icon: RefreshCw,
-              title: '3. Request',
-              desc: 'Found something you like? Send a swap request offering your items.'
-            },
-            {
-              icon: HeartHandshake,
-              title: '4. Swap',
-              desc: 'Once accepted, choose how to exchange and enjoy your new clothes!'
-            }].
-            map((step, index) =>
-            <motion.div
-              key={index}
-              variants={itemVariants}
-              className="relative z-10 flex flex-col items-center text-center">
-              
-                <div className="w-24 h-24 rounded-full bg-white shadow-md border border-warmGray-100 flex items-center justify-center mb-6 text-primary-500">
-                  <step.icon size={32} strokeWidth={1.5} />
-                </div>
-                <h3 className="text-xl font-serif font-semibold text-warmGray-900 mb-3">
-                  {step.title}
-                </h3>
-                <p className="text-warmGray-600">{step.desc}</p>
-              </motion.div>
-            )}
+              {
+                icon: Upload,
+                title: '1. Upload',
+                desc: 'Snap photos of clothes you no longer wear and add them to your closet.'
+              },
+              {
+                icon: Search,
+                title: '2. Browse',
+                desc: 'Explore thousands of items from other users in the community.'
+              },
+              {
+                icon: RefreshCw,
+                title: '3. Request',
+                desc: 'Found something you like? Send a swap request offering your items.'
+              },
+              {
+                icon: HeartHandshake,
+                title: '4. Swap',
+                desc: 'Once accepted, choose how to exchange and enjoy your new clothes!'
+              }].
+              map((step, index) =>
+                <motion.div
+                  key={index}
+                  variants={itemVariants}
+                  className="relative z-10 flex flex-col items-center text-center">
+
+                  <div className="w-24 h-24 rounded-full bg-white shadow-md border border-warmGray-100 flex items-center justify-center mb-6 text-primary-500">
+                    <step.icon size={32} strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-xl font-serif font-semibold text-warmGray-900 mb-3">
+                    {step.title}
+                  </h3>
+                  <p className="text-warmGray-600">{step.desc}</p>
+                </motion.div>
+              )}
           </motion.div>
         </div>
       </section>
@@ -204,14 +214,14 @@ export function Landing() {
             <Link
               to="/browse"
               className="hidden sm:flex items-center text-primary-600 font-medium hover:text-primary-700 transition-colors">
-              
+
               View all <ArrowRight size={16} className="ml-2" />
             </Link>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredClothes.map((item) =>
-            <ClothesCard key={item.id} {...item} imageUrl={item.images[0]} />
+              <ClothesCard key={item.id} {...item} imageUrl={item.images[0]} />
             )}
           </div>
 
@@ -219,7 +229,7 @@ export function Landing() {
             <Link
               to="/browse"
               className="inline-flex items-center text-primary-600 font-medium hover:text-primary-700 transition-colors">
-              
+
               View all items <ArrowRight size={16} className="ml-2" />
             </Link>
           </div>
@@ -242,33 +252,33 @@ export function Landing() {
 
               <ul className="space-y-6">
                 {[
-                {
-                  title: 'Eco-Friendly',
-                  desc: 'Reduce your carbon footprint and keep textiles out of landfills.'
-                },
-                {
-                  title: 'Cost-Effective',
-                  desc: "Get 'new to you' clothes without spending any money."
-                },
-                {
-                  title: 'Community Driven',
-                  desc: 'Connect with fashion lovers in your local area.'
-                }].
-                map((benefit, i) =>
-                <li key={i} className="flex">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-6 h-6 rounded-full bg-secondary-500 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                  {
+                    title: 'Eco-Friendly',
+                    desc: 'Reduce your carbon footprint and keep textiles out of landfills.'
+                  },
+                  {
+                    title: 'Cost-Effective',
+                    desc: "Get 'new to you' clothes without spending any money."
+                  },
+                  {
+                    title: 'Community Driven',
+                    desc: 'Connect with fashion lovers in your local area.'
+                  }].
+                  map((benefit, i) =>
+                    <li key={i} className="flex">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-6 h-6 rounded-full bg-secondary-500 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-white"></div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="ml-4">
-                      <h4 className="text-lg font-medium text-white">
-                        {benefit.title}
-                      </h4>
-                      <p className="mt-1 text-secondary-200">{benefit.desc}</p>
-                    </div>
-                  </li>
-                )}
+                      <div className="ml-4">
+                        <h4 className="text-lg font-medium text-white">
+                          {benefit.title}
+                        </h4>
+                        <p className="mt-1 text-secondary-200">{benefit.desc}</p>
+                      </div>
+                    </li>
+                  )}
               </ul>
             </div>
 
@@ -278,15 +288,15 @@ export function Landing() {
                   src="https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&q=80&w=1000"
                   alt="People swapping clothes"
                   className="w-full h-full object-cover" />
-                
+
               </div>
               <div className="absolute -bottom-6 -left-6 bg-white text-warmGray-900 p-6 rounded-2xl shadow-xl max-w-xs">
                 <div className="flex items-center mb-2">
                   {[...Array(5)].map((_, i) =>
-                  <Star
-                    key={i}
-                    size={16}
-                    className="fill-yellow-400 text-yellow-400" />
+                    <Star
+                      key={i}
+                      size={16}
+                      className="fill-yellow-400 text-yellow-400" />
 
                   )}
                 </div>
@@ -316,7 +326,7 @@ export function Landing() {
           <Link
             to="/register"
             className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium rounded-full text-white bg-primary-500 hover:bg-primary-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1">
-            
+
             Create Your Free Account
           </Link>
         </div>

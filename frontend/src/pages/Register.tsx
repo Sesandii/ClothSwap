@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
-import { saveAuth } from '../lib/auth';
+import { getStoredToken, saveAuth } from '../lib/auth';
 
 export function Register() {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +19,12 @@ export function Register() {
     confirmPassword: ''
   });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (getStoredToken()) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

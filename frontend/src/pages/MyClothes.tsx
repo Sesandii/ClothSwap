@@ -114,7 +114,7 @@ export function MyClothes() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-serif font-bold text-warmGray-900 mb-2">
@@ -178,11 +178,10 @@ export function MyClothes() {
                       item.status === 'available' ? 'swapped' : 'available'
                     )
                   }
-                  className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${
-                    item.status === 'available'
+                  className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${item.status === 'available'
                       ? 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
                       : 'bg-warmGray-100 text-warmGray-700 hover:bg-warmGray-200'
-                  }`}
+                    }`}
                 >
                   {item.status === 'available' ? 'Available' : 'Swapped'}
                 </button>

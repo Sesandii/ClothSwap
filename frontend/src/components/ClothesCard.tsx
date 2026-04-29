@@ -11,6 +11,7 @@ interface ClothesCardProps {
   location: string;
   imageUrl: string;
   isFavorite?: boolean;
+  isOwnItem?: boolean;
   onFavoriteToggle?: (e: React.MouseEvent) => void;
 }
 export function ClothesCard({
@@ -22,6 +23,7 @@ export function ClothesCard({
   location,
   imageUrl,
   isFavorite = false,
+  isOwnItem = false,
   onFavoriteToggle
 }: ClothesCardProps) {
   return (
@@ -33,22 +35,31 @@ export function ClothesCard({
         duration: 0.2
       }}
       className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-warmGray-100 flex flex-col h-full">
-      
+
       <div className="relative aspect-[4/5] overflow-hidden bg-warmGray-100">
         <img
           src={imageUrl}
           alt={title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-        
-        <button
-          onClick={onFavoriteToggle}
-          className="absolute top-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white text-warmGray-600 hover:text-primary-500 transition-colors shadow-sm">
-          
-          <Heart
-            size={18}
-            className={isFavorite ? 'fill-primary-500 text-primary-500' : ''} />
-          
-        </button>
+
+        <span
+          title={isOwnItem ? 'You cannot favorite your own items' : ''}
+          className="absolute top-3 right-3 inline-block">
+          <button
+            onClick={onFavoriteToggle}
+            disabled={isOwnItem}
+            aria-label={isOwnItem ? 'You cannot favorite your own items' : 'Toggle favorite'}
+            className={`p-2 rounded-full bg-white/80 backdrop-blur-sm transition-colors shadow-sm ${isOwnItem
+              ? 'cursor-not-allowed opacity-50 text-warmGray-400'
+              : 'hover:bg-white text-warmGray-600 hover:text-primary-500'
+            }`}>
+
+            <Heart
+              size={18}
+              className={isFavorite ? 'fill-primary-500 text-primary-500' : ''} />
+
+          </button>
+        </span>
         <div className="absolute bottom-3 left-3 flex gap-2">
           <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-xs font-medium rounded-md shadow-sm">
             {size}
@@ -65,7 +76,7 @@ export function ClothesCard({
             <Link
               to={`/clothes/${id}`}
               className="hover:text-primary-500 transition-colors">
-              
+
               {title}
             </Link>
           </h3>

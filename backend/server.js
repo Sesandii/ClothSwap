@@ -19,10 +19,12 @@ app.get("/", (req, res) => {
 const userRoutes = require("./routes/userRoutes");
 const clothesRoutes = require("./routes/clothesRoutes");
 const swapRequestRoutes = require("./routes/swapRequestRoutes");
+const favoritesRoutes = require("./routes/favoritesRoutes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/clothes", clothesRoutes);
 app.use("/api/swapRequests", swapRequestRoutes);
+app.use("/api/favorites", favoritesRoutes);
 
 // Connect to DB and start server
 const PORT = process.env.PORT || 5000;

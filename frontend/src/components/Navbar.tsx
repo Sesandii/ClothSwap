@@ -1,25 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, User, Search, Heart, MessageSquare } from 'lucide-react';
-import { getStoredUser, logout } from '../lib/auth';
+import { getAuthenticatedUser, getStoredToken, logout } from '../lib/auth';
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const location = useLocation();
-  const currentUser = getStoredUser();
+  const isLoggedIn = Boolean(getStoredToken());
+  const currentUser = getAuthenticatedUser();
   const navLinks = [
     {
       name: 'Browse',
       path: '/browse'
     },
-    {
+    ...(isLoggedIn ? [{
       name: 'My Clothes',
       path: '/my-clothes'
-    },
-    {
+    }, {
       name: 'Swaps',
       path: '/my-swaps'
-    }];
+    }] : [])];
 
   const isActive = (path: string) => location.pathname.startsWith(path);
   return (
@@ -48,109 +48,126 @@ export function Navbar() {
 
           {/* Desktop Right Icons */}
           <div className="hidden md:flex md:items-center md:space-x-4">
-            <Link
-              to="/browse"
-              className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors">
+            {isLoggedIn && currentUser ?
+              <>
+                <Link
+                  to="/browse"
+                  className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors">
 
-              <Search size={20} />
-            </Link>
-            <Link
-              to="/favorites"
-              className="p-2 text-warmGray-400 hover:text-primary-500 transition-colors">
+                  <Search size={20} />
+                </Link>
+                <Link
+                  to="/favorites"
+                  className="p-2 text-warmGray-400 hover:text-primary-500 transition-colors">
 
-              <Heart size={20} />
-            </Link>
-            <Link
-              to="/chat"
-              className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
+                  <Heart size={20} />
+                </Link>
+                <Link
+                  to="/chat"
+                  className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
 
-              <MessageSquare size={20} />
-              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
-            </Link>
-            <Link
-              to="/notifications"
-              className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
+                  <MessageSquare size={20} />
+                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
+                </Link>
+                <Link
+                  to="/notifications"
+                  className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
 
-              <Bell size={20} />
-              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
-            </Link>
+                  <Bell size={20} />
+                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
+                </Link>
 
-            {/* Profile Dropdown */}
-            <div className="ml-3 relative">
-              <div>
-                <button
-                  onClick={() =>
-                    setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                <div className="ml-3 relative">
+                  <div>
+                    <button
+                      onClick={() =>
+                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                      }
+                      className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+
+                      <span className="sr-only">Open user menu</span>
+                      <img
+                        className="h-8 w-8 rounded-full object-cover border border-warmGray-200"
+                        src={currentUser.avatar}
+                        alt={currentUser.name} />
+
+                    </button>
+                  </div>
+
+                  {isProfileDropdownOpen &&
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsProfileDropdownOpen(false)}>
+                      </div>
+                      <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-xl shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-20">
+                        <div className="px-4 py-2 border-b border-warmGray-100">
+                          <p className="text-sm font-medium text-warmGray-900 truncate">
+                            {currentUser.name}
+                          </p>
+                          <p className="text-xs text-warmGray-500 truncate">
+                            {currentUser.email}
+                          </p>
+                        </div>
+                        <Link
+                          to="/dashboard"
+                          className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}>
+
+                          Dashboard
+                        </Link>
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}>
+
+                          Your Profile
+                        </Link>
+                        <Link
+                          to="/add-clothes"
+                          className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}>
+
+                          Add Clothes
+                        </Link>
+                        <div className="border-t border-warmGray-100"></div>
+                        <Link
+                          to="/login"
+                          className="block px-4 py-2 text-sm text-primary-600 hover:bg-warmGray-50"
+                          onClick={() => {
+                            logout();
+                            setIsProfileDropdownOpen(false);
+                          }}>
+
+                          Sign out
+                        </Link>
+                      </div>
+                    </>
                   }
-                  className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                </div>
 
-                  <span className="sr-only">Open user menu</span>
-                  <img
-                    className="h-8 w-8 rounded-full object-cover border border-warmGray-200"
-                    src={currentUser.avatar}
-                    alt={currentUser.name} />
+                <Link
+                  to="/add-clothes"
+                  className="ml-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
 
-                </button>
-              </div>
+                  Upload
+                </Link>
+              </> :
+              <>
+                <Link
+                  to="/login"
+                  className="text-sm font-medium text-warmGray-700 hover:text-warmGray-900 transition-colors">
 
-              {isProfileDropdownOpen &&
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setIsProfileDropdownOpen(false)}>
-                  </div>
-                  <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-xl shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-20">
-                    <div className="px-4 py-2 border-b border-warmGray-100">
-                      <p className="text-sm font-medium text-warmGray-900 truncate">
-                        {currentUser.name}
-                      </p>
-                      <p className="text-xs text-warmGray-500 truncate">
-                        {currentUser.email}
-                      </p>
-                    </div>
-                    <Link
-                      to="/dashboard"
-                      className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
-                      onClick={() => setIsProfileDropdownOpen(false)}>
+                  Log in
+                </Link>
+                <Link
+                  to="/register"
+                  className="ml-2 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 transition-colors">
 
-                      Dashboard
-                    </Link>
-                    <Link
-                      to="/profile"
-                      className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
-                      onClick={() => setIsProfileDropdownOpen(false)}>
-
-                      Your Profile
-                    </Link>
-                    <Link
-                      to="/add-clothes"
-                      className="block px-4 py-2 text-sm text-warmGray-700 hover:bg-warmGray-50"
-                      onClick={() => setIsProfileDropdownOpen(false)}>
-
-                      Add Clothes
-                    </Link>
-                    <div className="border-t border-warmGray-100"></div>
-                    <Link
-                      to="/login"
-                      className="block px-4 py-2 text-sm text-primary-600 hover:bg-warmGray-50"
-                      onClick={() => {
-                        logout();
-                        setIsProfileDropdownOpen(false);
-                      }}>
-
-                      Sign out
-                    </Link>
-                  </div>
-                </>
-              }
-            </div>
-
-            <Link
-              to="/add-clothes"
-              className="ml-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
-
-              Upload
-            </Link>
+                  Sign up
+                </Link>
+              </>
+            }
           </div>
 
           {/* Mobile menu button */}
@@ -185,64 +202,82 @@ export function Navbar() {
               </Link>
             )}
           </div>
-          <div className="pt-4 pb-3 border-t border-warmGray-200">
-            <div className="flex items-center px-4">
-              <div className="flex-shrink-0">
-                <img
-                  className="h-10 w-10 rounded-full object-cover"
-                  src={currentUser.avatar}
-                  alt={currentUser.name} />
+          {isLoggedIn && currentUser ?
+            <div className="pt-4 pb-3 border-t border-warmGray-200">
+              <div className="flex items-center px-4">
+                <div className="flex-shrink-0">
+                  <img
+                    className="h-10 w-10 rounded-full object-cover"
+                    src={currentUser.avatar}
+                    alt={currentUser.name} />
 
-              </div>
-              <div className="ml-3">
-                <div className="text-base font-medium text-warmGray-800">
-                  {currentUser.name}
                 </div>
-                <div className="text-sm font-medium text-warmGray-500">
-                  {currentUser.email}
+                <div className="ml-3">
+                  <div className="text-base font-medium text-warmGray-800">
+                    {currentUser.name}
+                  </div>
+                  <div className="text-sm font-medium text-warmGray-500">
+                    {currentUser.email}
+                  </div>
                 </div>
+                <Link
+                  to="/notifications"
+                  className="ml-auto flex-shrink-0 p-1 text-warmGray-400 hover:text-warmGray-500">
+
+                  <Bell size={24} />
+                </Link>
               </div>
-              <Link
-                to="/notifications"
-                className="ml-auto flex-shrink-0 p-1 text-warmGray-400 hover:text-warmGray-500">
+              <div className="mt-3 space-y-1">
+                <Link
+                  to="/dashboard"
+                  className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}>
 
-                <Bell size={24} />
-              </Link>
-            </div>
-            <div className="mt-3 space-y-1">
-              <Link
-                to="/dashboard"
-                className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
-                onClick={() => setIsMobileMenuOpen(false)}>
+                  Dashboard
+                </Link>
+                <Link
+                  to="/profile"
+                  className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}>
 
-                Dashboard
-              </Link>
-              <Link
-                to="/profile"
-                className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
-                onClick={() => setIsMobileMenuOpen(false)}>
+                  Your Profile
+                </Link>
+                <Link
+                  to="/add-clothes"
+                  className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
+                  onClick={() => setIsMobileMenuOpen(false)}>
 
-                Your Profile
-              </Link>
-              <Link
-                to="/add-clothes"
-                className="block px-4 py-2 text-base font-medium text-warmGray-600 hover:text-warmGray-800 hover:bg-warmGray-50"
-                onClick={() => setIsMobileMenuOpen(false)}>
+                  Add Clothes
+                </Link>
+                <Link
+                  to="/login"
+                  className="block px-4 py-2 text-base font-medium text-primary-600 hover:text-primary-800 hover:bg-warmGray-50"
+                  onClick={() => {
+                    logout();
+                    setIsMobileMenuOpen(false);
+                  }}>
 
-                Add Clothes
-              </Link>
+                  Sign out
+                </Link>
+              </div>
+            </div> :
+            <div className="py-3 border-t border-warmGray-200 px-4 space-y-2">
               <Link
                 to="/login"
-                className="block px-4 py-2 text-base font-medium text-primary-600 hover:text-primary-800 hover:bg-warmGray-50"
-                onClick={() => {
-                  logout();
-                  setIsMobileMenuOpen(false);
-                }}>
+                className="block px-3 py-2 text-base font-medium text-warmGray-700 hover:bg-warmGray-50 rounded-lg"
+                onClick={() => setIsMobileMenuOpen(false)}>
 
-                Sign out
+                Log in
+              </Link>
+              <Link
+                to="/register"
+                className="block px-3 py-2 text-base font-medium text-white bg-primary-500 hover:bg-primary-600 rounded-lg"
+                onClick={() => setIsMobileMenuOpen(false)}>
+
+                Sign up
               </Link>
             </div>
-          </div>
+          }
         </div>
       }
     </nav>);

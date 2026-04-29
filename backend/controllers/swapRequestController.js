@@ -2,6 +2,27 @@ const SwapRequest = require("../models/SwapRequest");
 const Clothes = require("../models/Clothes");
 const User = require("../models/User");
 
+const swapRequestPopulation = [
+  {
+    path: "requester",
+    select: "name location profilePic",
+  },
+  {
+    path: "offeredClothes",
+    populate: {
+      path: "user",
+      select: "name location profilePic",
+    },
+  },
+  {
+    path: "requestedClothes",
+    populate: {
+      path: "user",
+      select: "name location profilePic",
+    },
+  },
+];
+
 const createSwapRequest = async (req, res) => {
   const { offeredClothes, requestedClothes, message } = req.body;
 
@@ -44,8 +65,11 @@ const createSwapRequest = async (req, res) => {
     });
 
     const savedSwapRequest = await newSwapRequest.save();
+    const populatedSwapRequest = await SwapRequest.findById(savedSwapRequest._id)
+      .populate(swapRequestPopulation)
+      .exec();
 
-    return res.status(201).json(savedSwapRequest);
+    return res.status(201).json(populatedSwapRequest || savedSwapRequest);
   } catch (err) {
     return res.status(500).json({ message: "Server error" });
   }
@@ -53,7 +77,9 @@ const createSwapRequest = async (req, res) => {
 
 const getAllSwapRequests = async (req, res) => {
   try {
-    const swapRequests = await SwapRequest.find();
+    const swapRequests = await SwapRequest.find()
+      .populate(swapRequestPopulation)
+      .sort({ createdAt: -1 });
 
     return res.json(swapRequests);
   } catch (err) {
