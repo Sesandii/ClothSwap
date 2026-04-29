@@ -52,7 +52,7 @@ export function ClothesCard({
             className={`p-2 rounded-full bg-white/80 backdrop-blur-sm transition-colors shadow-sm ${isOwnItem
               ? 'cursor-not-allowed opacity-50 text-warmGray-400'
               : 'hover:bg-white text-warmGray-600 hover:text-primary-500'
-            }`}>
+              }`}>
 
             <Heart
               size={18}
