@@ -26,8 +26,8 @@ type SwapRequestItem = {
   requester: UserRef;
   offeredOwner?: UserRef;
   requestedOwner?: UserRef;
-  offeredClothes: ClothesItem;
-  requestedClothes: ClothesItem;
+  offeredClothes: ClothesItem | null;
+  requestedClothes: ClothesItem | null;
   message?: string;
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
   exchangeMethod?: {
@@ -215,7 +215,7 @@ export function MySwapRequests() {
             const requestSide = getRequestSide(request, currentUserId) || activeTab;
             const otherUser =
               requestSide === 'sent'
-                ? request.requestedOwner || requestedItem.user
+                ? request.requestedOwner || (typeof requestedItem?.user === 'object' ? requestedItem.user : undefined)
                 : request.offeredOwner || request.requester;
             const isBusy = busyId === request._id;
 
@@ -316,7 +316,19 @@ export function MySwapRequests() {
   );
 }
 
-function SwapItem({ item, label }: { item: ClothesItem; label: string }) {
+function SwapItem({ item, label }: { item: ClothesItem | null; label: string }) {
+  if (!item) {
+    return (
+      <div className="text-center w-24">
+        <div className="w-20 h-24 rounded-lg mx-auto mb-2 bg-warmGray-100 flex items-center justify-center text-[11px] text-warmGray-400 px-2">
+          Item unavailable
+        </div>
+        <p className="text-xs text-warmGray-500 truncate">{label}</p>
+        <p className="text-xs font-medium text-warmGray-400 truncate">Removed item</p>
+      </div>
+    );
+  }
+
   return (
     <div className="text-center w-24">
       <img

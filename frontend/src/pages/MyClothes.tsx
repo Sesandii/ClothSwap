@@ -58,7 +58,7 @@ export function MyClothes() {
     void loadMyClothes();
   }, []);
 
-  const toggleStatus = async (id: string, nextStatus: ClothesItem['status']) => {
+  const toggleStatus = async (id: string, nextStatus: 'available' | 'hidden') => {
     const token = getStoredToken();
 
     if (!token) return;
@@ -79,7 +79,11 @@ export function MyClothes() {
       setItems((prev) =>
         prev.map((item) => (item._id === id ? { ...item, status: nextStatus } : item))
       );
-      toast.success('Status updated successfully');
+      toast.success(
+        nextStatus === 'available'
+          ? 'Item is available for swaps'
+          : 'Item hidden from browse'
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Status update failed');
     }
@@ -170,22 +174,7 @@ export function MyClothes() {
                 </button>
               </div>
 
-              <div className="mt-3">
-                <button
-                  onClick={() =>
-                    toggleStatus(
-                      item._id,
-                      item.status === 'available' ? 'swapped' : 'available'
-                    )
-                  }
-                  className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${item.status === 'available'
-                      ? 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
-                      : 'bg-warmGray-100 text-warmGray-700 hover:bg-warmGray-200'
-                    }`}
-                >
-                  {item.status === 'available' ? 'Available' : 'Swapped'}
-                </button>
-              </div>
+              <ItemStatusControl item={item} onToggleStatus={toggleStatus} />
             </div>
           ))}
         </motion.div>
@@ -213,6 +202,55 @@ export function MyClothes() {
           </Link>
         </motion.div>
       )}
+    </div>
+  );
+}
+
+function ItemStatusControl({
+  item,
+  onToggleStatus
+}: {
+  item: ClothesItem;
+  onToggleStatus: (id: string, nextStatus: 'available' | 'hidden') => void;
+}) {
+  if (item.status === 'swapped') {
+    return (
+      <div className="mt-3 space-y-2">
+        <div className="w-full py-2 px-4 rounded-xl bg-warmGray-100 text-warmGray-600 font-medium text-sm text-center">
+          Received from swap
+        </div>
+        <button
+          onClick={() => {
+            const shouldRelist = window.confirm(
+              'Relist this item? It will become visible in Browse Clothes and other users can request it.'
+            );
+
+            if (shouldRelist) {
+              onToggleStatus(item._id, 'available');
+            }
+          }}
+          className="w-full py-2 px-4 rounded-xl bg-secondary-100 text-secondary-700 hover:bg-secondary-200 font-medium text-sm transition-colors"
+        >
+          Relist item
+        </button>
+      </div>
+    );
+  }
+
+  const isAvailable = item.status === 'available';
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => onToggleStatus(item._id, isAvailable ? 'hidden' : 'available')}
+        className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${
+          isAvailable
+            ? 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
+            : 'bg-warmGray-100 text-warmGray-700 hover:bg-warmGray-200'
+        }`}
+      >
+        {isAvailable ? 'Available' : 'Hidden'}
+      </button>
     </div>
   );
 }

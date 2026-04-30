@@ -35,6 +35,15 @@ const clothesSchema = new mongoose.Schema({
     enum: ["available", "swapped", "hidden"],
     default: "available",
   },
+  receivedFromSwap: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "SwapRequest",
+    default: null,
+  },
+  relistedAt: {
+    type: Date,
+    default: null,
+  },
   gender: {
     type: String,
     default: "",

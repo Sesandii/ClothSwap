@@ -46,14 +46,40 @@ const transferCompletedSwapOwnership = async (swapRequest) => {
     return;
   }
 
-  await Promise.all([
-    Clothes.findByIdAndUpdate(offeredClothesId, {
-      $set: { user: requestedOwnerId, status: "swapped" },
-    }),
-    Clothes.findByIdAndUpdate(requestedClothesId, {
-      $set: { user: offeredOwnerId, status: "swapped" },
-    }),
+  const [offeredItem, requestedItem] = await Promise.all([
+    Clothes.findById(offeredClothesId).select("user status"),
+    Clothes.findById(requestedClothesId).select("user status"),
   ]);
+
+  const updates = [];
+
+  if (offeredItem && getObjectId(offeredItem.user) !== requestedOwnerId) {
+    updates.push(
+      Clothes.findByIdAndUpdate(offeredClothesId, {
+        $set: {
+          user: requestedOwnerId,
+          status: "swapped",
+          receivedFromSwap: swapRequest._id,
+          relistedAt: null,
+        },
+      })
+    );
+  }
+
+  if (requestedItem && getObjectId(requestedItem.user) !== offeredOwnerId) {
+    updates.push(
+      Clothes.findByIdAndUpdate(requestedClothesId, {
+        $set: {
+          user: offeredOwnerId,
+          status: "swapped",
+          receivedFromSwap: swapRequest._id,
+          relistedAt: null,
+        },
+      })
+    );
+  }
+
+  await Promise.all(updates);
 };
 
 module.exports = {

@@ -47,7 +47,10 @@ const createClothesItem = async (req, res) => {
 
 const getAllClothes = async (req, res) => {
   try {
-    const clothes = await Clothes.find({ status: "available" })
+    const clothes = await Clothes.find({
+      status: "available",
+      "images.0": { $exists: true },
+    })
       .populate("user", "name location profilePic")
       .sort({ createdAt: -1 });
 
@@ -168,6 +171,14 @@ const updateClothesItem = async (req, res) => {
 };
 
 const updateClothesStatus = async (req, res) => {
+  const { status } = req.body;
+
+  if (!["available", "hidden"].includes(status)) {
+    return res.status(400).json({
+      message: "Items can only be marked available or hidden from your wardrobe",
+    });
+  }
+
   try {
     const clothesItem = await Clothes.findById(req.params.id);
 
@@ -179,7 +190,14 @@ const updateClothesStatus = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    clothesItem.status = req.body.status;
+    const wasReceivedFromSwap = clothesItem.status === "swapped";
+
+    clothesItem.status = status;
+
+    if (wasReceivedFromSwap && status === "available") {
+      clothesItem.relistedAt = new Date();
+    }
+
     await clothesItem.save();
 
     return res.json(clothesItem);
