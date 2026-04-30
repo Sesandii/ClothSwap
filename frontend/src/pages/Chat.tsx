@@ -34,6 +34,7 @@ type ConversationRecord = {
   messages?: MessageRecord[];
   lastMessage?: MessageRecord | null;
   lastMessageAt?: string;
+  unreadCount?: number;
 };
 
 const getUserId = (user?: UserSummary) => String(user?._id || user?.id || '');
@@ -103,8 +104,13 @@ export function Chat() {
       }
 
       const detailData = (await detailResponse.json()) as ConversationRecord;
-      setActiveConversation(detailData);
       const readResponse = await markMessagesReadFromUser(selectedUserId);
+      const updatedDetailData = {
+        ...detailData,
+        unreadCount: readResponse.ok ? 0 : detailData.unreadCount || 0,
+      };
+
+      setActiveConversation(updatedDetailData);
 
       if (readResponse.ok) {
         window.dispatchEvent(new Event('clothswap:messages-updated'));
@@ -120,10 +126,10 @@ export function Chat() {
         const next = exists
           ? current.map((conversation) =>
               getUserId(getPartner(conversation, currentUserId)) === selectedPartnerId
-                ? detailData
+                ? updatedDetailData
                 : conversation
             )
-          : [...current, detailData];
+          : [...current, updatedDetailData];
 
         return next.sort((first, second) => {
           return getConversationTimestamp(second) - getConversationTimestamp(first);
@@ -155,6 +161,18 @@ export function Chat() {
     return () => {
       mounted = false;
     };
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshConversations();
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
   }, [userId]);
 
   const filteredConversations = useMemo(() => {
@@ -260,27 +278,45 @@ export function Chat() {
                 const partner = getPartner(conversation, currentUserId);
                 const lastMessage = conversation.lastMessage || conversation.messages?.[conversation.messages.length - 1];
                 const partnerId = getUserId(partner);
+                const unreadCount = conversation.unreadCount || 0;
+                const isUnread = unreadCount > 0;
+                const isSelected = userId === partnerId;
 
                 return (
                   <button
                     key={conversation._id || partnerId}
                     type="button"
                     onClick={() => handleOpenConversation(conversation)}
-                    className={`w-full p-4 border-b border-warmGray-50 transition-colors flex items-start gap-3 text-left ${userId === partnerId ? 'bg-primary-50/50' : 'hover:bg-warmGray-50'}`}>
+                    className={`w-full p-4 border-b transition-colors flex items-start gap-3 text-left ${
+                      isSelected
+                        ? 'bg-primary-50/70 border-primary-100'
+                        : isUnread
+                          ? 'bg-primary-50/40 border-primary-100 hover:bg-primary-50/70'
+                          : 'border-warmGray-50 hover:bg-warmGray-50'
+                    }`}>
                     <img
                       src={getAvatar(partner)}
                       alt={partner?.name || 'User'}
-                      className="w-12 h-12 rounded-full object-cover bg-warmGray-100" />
+                      className={`w-12 h-12 rounded-full object-cover bg-warmGray-100 ${
+                        isUnread ? 'ring-2 ring-primary-400 ring-offset-2' : ''
+                      }`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-1 gap-2">
-                        <h4 className="font-medium text-warmGray-900 truncate">
+                        <h4 className={`${isUnread ? 'font-semibold text-warmGray-950' : 'font-medium text-warmGray-900'} truncate`}>
                           {partner?.name || 'Unknown User'}
                         </h4>
-                        <span className="text-xs text-warmGray-400 shrink-0 ml-2">
-                          {formatTime(lastMessage?.createdAt || conversation.lastMessageAt)}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className={`text-xs ${isUnread ? 'font-semibold text-primary-600' : 'text-warmGray-400'}`}>
+                            {formatTime(lastMessage?.createdAt || conversation.lastMessageAt)}
+                          </span>
+                          {isUnread && (
+                            <span className="min-w-5 h-5 px-1 rounded-full bg-primary-500 text-[10px] font-semibold text-white flex items-center justify-center">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-warmGray-500 truncate">
+                      <p className={`text-sm truncate ${isUnread ? 'font-semibold text-warmGray-800' : 'text-warmGray-500'}`}>
                         {lastMessage?.text || 'No messages yet'}
                       </p>
                     </div>

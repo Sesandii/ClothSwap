@@ -39,27 +39,50 @@ const findOtherParticipant = (conversation, currentUserId) =>
         (participant) => String(participant._id || participant.id) !== String(currentUserId)
     );
 
-const normalizeConversation = (conversation, currentUserId) => {
+const normalizeConversation = (conversation, currentUserId, unreadMessageCounts = {}) => {
     const otherParticipant = findOtherParticipant(conversation, currentUserId);
     const messages = Array.isArray(conversation.messages)
         ? conversation.messages
         : [];
     const lastMessage = messages[messages.length - 1] || null;
+    const otherParticipantId = String(otherParticipant?._id || otherParticipant?.id || "");
 
     return {
         ...conversation.toObject(),
         otherParticipant,
         lastMessage,
+        unreadCount: unreadMessageCounts[otherParticipantId] || 0,
     };
 };
 
 const getConversations = async (req, res) => {
     try {
-        const conversations = await Conversation.find({ participants: req.user })
-            .populate(conversationPopulation)
-            .sort({ lastMessageAt: -1, createdAt: -1 });
+        const [conversations, unreadNotifications] = await Promise.all([
+            Conversation.find({ participants: req.user })
+                .populate(conversationPopulation)
+                .sort({ lastMessageAt: -1, createdAt: -1 }),
+            Notification.find({
+                user: req.user,
+                type: "new_message",
+                read: false,
+            }).select("actor"),
+        ]);
+        const unreadMessageCounts = unreadNotifications.reduce((counts, notification) => {
+            const actorId = String(notification.actor || "");
 
-        return res.json(conversations.map((conversation) => normalizeConversation(conversation, req.user)));
+            if (!actorId) {
+                return counts;
+            }
+
+            counts[actorId] = (counts[actorId] || 0) + 1;
+            return counts;
+        }, {});
+
+        return res.json(
+            conversations.map((conversation) =>
+                normalizeConversation(conversation, req.user, unreadMessageCounts)
+            )
+        );
     } catch (err) {
         return res.status(500).json({ message: "Server error" });
     }
