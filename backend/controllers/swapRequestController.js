@@ -252,6 +252,12 @@ const updateSwapRequestStatus = async (req, res) => {
       return res.status(400).json({ message: "Only accepted swaps can be completed" });
     }
 
+    if (!isExchangeMethodAccepted(swapRequest.exchangeMethod)) {
+      return res.status(400).json({
+        message: "Both users must agree on an exchange method before completing the swap",
+      });
+    }
+
     swapRequest.status = "completed";
     swapRequest.completedAt = new Date();
     await swapRequest.save();
@@ -300,14 +306,86 @@ const updateExchangeMethod = async (req, res) => {
       });
     }
 
+    const currentProposal = swapRequest.exchangeMethod || {};
+
+    if (
+      currentProposal.status === "pending" &&
+      currentProposal.proposedBy?.toString() !== req.user.toString()
+    ) {
+      return res.status(400).json({
+        message: "Respond to the current exchange proposal before suggesting another method",
+      });
+    }
+
     swapRequest.exchangeMethod = {
       method,
+      status: "pending",
+      proposedBy: req.user,
       details: sanitizeExchangeDetails(method, details || {}),
-      confirmedAt: new Date(),
+      respondedAt: undefined,
+      confirmedAt: undefined,
     };
 
     await swapRequest.save();
-    await notifyStatusChange(swapRequest, req.user, "exchange_method");
+    await notifyStatusChange(swapRequest, req.user, "exchange_proposed");
+
+    return res.json(await populateSwapRequest(swapRequest._id));
+  } catch (err) {
+    if (err.message === "Meetup date cannot be in the past") {
+      return res.status(400).json({ message: err.message });
+    }
+
+    if (err.name === "CastError") {
+      return res.status(404).json({ message: "Swap request not found" });
+    }
+
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const respondToExchangeMethod = async (req, res) => {
+  const { action } = req.body;
+
+  if (!["accepted", "rejected"].includes(action)) {
+    return res.status(400).json({ message: "Invalid exchange response" });
+  }
+
+  try {
+    const swapRequest = await SwapRequest.findById(req.params.id)
+      .populate(swapRequestPopulation)
+      .exec();
+
+    if (!swapRequest) {
+      return res.status(404).json({ message: "Swap request not found" });
+    }
+
+    if (!isParticipant(swapRequest, req.user)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const exchangeMethod = swapRequest.exchangeMethod || {};
+
+    if (!exchangeMethod.method || exchangeMethod.status !== "pending") {
+      return res.status(400).json({ message: "There is no pending exchange proposal" });
+    }
+
+    if (exchangeMethod.proposedBy?.toString() === req.user.toString()) {
+      return res.status(400).json({
+        message: "The other swap participant must respond to your proposal",
+      });
+    }
+
+    exchangeMethod.status = action;
+    exchangeMethod.respondedAt = new Date();
+    exchangeMethod.confirmedAt = action === "accepted" ? new Date() : undefined;
+    swapRequest.exchangeMethod = exchangeMethod;
+
+    await swapRequest.save();
+    await notifyStatusChange(
+      swapRequest,
+      req.user,
+      action === "accepted" ? "exchange_accepted" : "exchange_rejected"
+    );
 
     return res.json(await populateSwapRequest(swapRequest._id));
   } catch (err) {
@@ -451,12 +529,18 @@ const notifyStatusChange = async (swapRequest, actor, status) => {
     rejected: "Swap Rejected",
     completed: "Swap Completed",
     exchange_method: "Exchange Method Confirmed",
+    exchange_proposed: "Exchange Method Proposed",
+    exchange_accepted: "Exchange Method Accepted",
+    exchange_rejected: "Exchange Method Rejected",
   };
   const types = {
     accepted: "request_accepted",
     rejected: "request_rejected",
     completed: "delivery_update",
     exchange_method: "exchange_selected",
+    exchange_proposed: "exchange_selected",
+    exchange_accepted: "exchange_selected",
+    exchange_rejected: "exchange_selected",
   };
 
   await createNotification({
@@ -469,6 +553,13 @@ const notifyStatusChange = async (swapRequest, actor, status) => {
     metadata: { swapRequest: swapRequest._id },
   });
 };
+
+const isExchangeMethodAccepted = (exchangeMethod) =>
+  Boolean(
+    exchangeMethod?.method &&
+      (exchangeMethod.status === "accepted" ||
+        (!exchangeMethod.status && exchangeMethod.confirmedAt))
+  );
 
 const getOfferedOwnerId = (swapRequest) => {
   if (swapRequest.offeredOwner) {
@@ -520,6 +611,7 @@ module.exports = {
   getAllSwapRequests,
   updateSwapRequestStatus,
   updateExchangeMethod,
+  respondToExchangeMethod,
   getMyReviews,
   createReview,
 };

@@ -41,10 +41,19 @@ const swapRequestSchema = new mongoose.Schema({
       type: String,
       enum: ["meetup", "delivery", "collection"],
     },
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+    },
+    proposedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     details: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    respondedAt: Date,
     confirmedAt: Date,
   },
   completedAt: Date,

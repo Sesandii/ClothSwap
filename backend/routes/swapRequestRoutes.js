@@ -8,6 +8,7 @@ const {
   getAllSwapRequests,
   updateSwapRequestStatus,
   updateExchangeMethod,
+  respondToExchangeMethod,
   getMyReviews,
   createReview,
 } = require("../controllers/swapRequestController");
@@ -19,6 +20,7 @@ router.get("/", getAllSwapRequests);
 router.get("/:id", authMiddleware, getSwapRequestById);
 router.patch("/:id/status", authMiddleware, updateSwapRequestStatus);
 router.patch("/:id/exchange-method", authMiddleware, updateExchangeMethod);
+router.patch("/:id/exchange-method/respond", authMiddleware, respondToExchangeMethod);
 router.post("/:id/reviews", authMiddleware, createReview);
 
 module.exports = router;

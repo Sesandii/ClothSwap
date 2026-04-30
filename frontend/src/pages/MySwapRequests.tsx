@@ -33,6 +33,8 @@ type SwapRequestItem = {
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
   exchangeMethod?: {
     method?: 'meetup' | 'delivery' | 'collection';
+    status?: 'pending' | 'accepted' | 'rejected';
+    confirmedAt?: string;
   };
   createdAt: string;
 };
@@ -253,6 +255,18 @@ export function MySwapRequests() {
                 ? request.requestedOwner || (typeof requestedItem?.user === 'object' ? requestedItem.user : undefined)
                 : request.offeredOwner || request.requester;
             const isBusy = busyId === request._id;
+            const isExchangeAgreed = Boolean(
+              request.exchangeMethod?.method &&
+                (request.exchangeMethod.status === 'accepted' ||
+                  (!request.exchangeMethod.status && request.exchangeMethod.confirmedAt))
+            );
+            const exchangeActionLabel = isExchangeAgreed
+              ? 'Track Exchange'
+              : request.exchangeMethod?.status === 'pending'
+                ? 'Review Exchange Proposal'
+                : request.exchangeMethod?.status === 'rejected'
+                  ? 'Suggest New Method'
+                  : 'Propose Exchange Method';
 
             return (
               <motion.div
@@ -321,14 +335,14 @@ export function MySwapRequests() {
                       <button
                         onClick={() =>
                           navigate(
-                            request.exchangeMethod?.method
+                            isExchangeAgreed
                               ? `/exchange-tracking/${request._id}`
                               : `/exchange/${request._id}`
                           )
                         }
                         className="w-full px-4 py-2 bg-secondary-500 text-white rounded-lg text-sm font-medium hover:bg-secondary-600 transition-colors"
                       >
-                        {request.exchangeMethod?.method ? 'Track Exchange' : 'Choose Exchange Method'}
+                        {exchangeActionLabel}
                       </button>
                     )}
 

@@ -4,6 +4,7 @@ import { MapPin, Truck, Building, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
 import { collectionPoints } from '../data/mockData';
+import { getStoredUser } from '../lib/auth';
 
 type MethodType = 'meetup' | 'delivery' | 'collection';
 
@@ -13,11 +14,25 @@ type ClothesItem = {
   images?: string[];
 };
 
+type UserRef = {
+  _id: string;
+  name?: string;
+};
+
+type ExchangeMethodState = {
+  method?: MethodType;
+  status?: 'pending' | 'accepted' | 'rejected';
+  proposedBy?: UserRef | string;
+  details?: Record<string, string>;
+  confirmedAt?: string;
+};
+
 type SwapRequestItem = {
   _id: string;
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
   offeredClothes: ClothesItem;
   requestedClothes: ClothesItem;
+  exchangeMethod?: ExchangeMethodState;
 };
 
 const placeholderImage =
@@ -28,6 +43,9 @@ const todayInputValue = () => {
   const timezoneOffset = today.getTimezoneOffset() * 60000;
   return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
 };
+
+const getRefId = (value?: UserRef | string) =>
+  typeof value === 'string' ? value : value?._id || '';
 
 export function ExchangeMethod() {
   const { id } = useParams();
@@ -45,7 +63,20 @@ export function ExchangeMethod() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResponding, setIsResponding] = useState(false);
   const minMeetupDate = todayInputValue();
+  const currentUser = getStoredUser();
+  const currentUserId = currentUser._id || currentUser.id || '';
+  const exchangeMethod = swap?.exchangeMethod;
+  const proposedById = getRefId(exchangeMethod?.proposedBy);
+  const isExchangeAccepted = Boolean(
+    exchangeMethod?.method &&
+      (exchangeMethod.status === 'accepted' || (!exchangeMethod.status && exchangeMethod.confirmedAt))
+  );
+  const hasPendingProposal = exchangeMethod?.method && exchangeMethod.status === 'pending';
+  const isMyPendingProposal = hasPendingProposal && proposedById === currentUserId;
+  const canRespond = Boolean(hasPendingProposal && proposedById !== currentUserId);
+  const canPropose = !isExchangeAccepted && !canRespond;
 
   useEffect(() => {
     const loadSwap = async () => {
@@ -79,7 +110,7 @@ export function ExchangeMethod() {
     return <div className="p-8 text-center">Swap not found.</div>;
   }
 
-  const handleConfirm = async (e: React.FormEvent) => {
+  const handleProposal = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedMethod) return;
@@ -101,15 +132,45 @@ export function ExchangeMethod() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Unable to confirm exchange method');
+        throw new Error(data.message || 'Unable to propose exchange method');
       }
 
-      toast.success('Exchange method confirmed!');
-      navigate(`/exchange-tracking/${swap._id}`);
+      setSwap(data);
+      toast.success('Exchange method proposed. Waiting for the other user to accept.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to confirm exchange method');
+      toast.error(error instanceof Error ? error.message : 'Unable to propose exchange method');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResponse = async (action: 'accepted' | 'rejected') => {
+    if (!swap) return;
+
+    try {
+      setIsResponding(true);
+      const response = await apiFetch(`/api/swapRequests/${swap._id}/exchange-method/respond`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to respond to exchange method');
+      }
+
+      setSwap(data);
+
+      if (action === 'accepted') {
+        toast.success('Exchange method accepted.');
+        navigate(`/exchange-tracking/${swap._id}`);
+      } else {
+        toast.success('Exchange method rejected. You can suggest a different method.');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to respond to exchange method');
+    } finally {
+      setIsResponding(false);
     }
   };
 
@@ -129,10 +190,10 @@ export function ExchangeMethod() {
 
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-warmGray-900 mb-2">
-          Choose Exchange Method
+          Agree Exchange Method
         </h1>
         <p className="text-warmGray-500">
-          How would you like to exchange these items?
+          Propose a method, then wait for the other user to accept it.
         </p>
       </div>
 
@@ -151,7 +212,69 @@ export function ExchangeMethod() {
         />
       </div>
 
-      <form onSubmit={handleConfirm} className="space-y-6">
+      {exchangeMethod?.method && (
+        <div className={`mb-8 rounded-2xl border p-5 ${
+          isExchangeAccepted
+            ? 'bg-secondary-50 border-secondary-200'
+            : hasPendingProposal
+              ? 'bg-primary-50 border-primary-200'
+              : 'bg-warmGray-50 border-warmGray-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-warmGray-500 mb-1">
+                {isExchangeAccepted ? 'Agreed method' : hasPendingProposal ? 'Pending proposal' : 'Rejected proposal'}
+              </p>
+              <h2 className="text-lg font-semibold text-warmGray-900 capitalize">
+                {exchangeMethod.method}
+              </h2>
+              <p className="text-sm text-warmGray-600 mt-1">
+                {isExchangeAccepted
+                  ? 'Both users agreed. You can track this exchange now.'
+                  : isMyPendingProposal
+                    ? 'Waiting for the other user to accept or reject this proposal.'
+                    : canRespond
+                      ? 'The other user suggested this method. Accept it or reject it before proposing another.'
+                      : 'This proposal was rejected. Suggest another method to keep the swap moving.'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {canRespond && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleResponse('rejected')}
+                    disabled={isResponding}
+                    className="px-4 py-2 rounded-lg border border-warmGray-200 text-warmGray-700 text-sm font-medium hover:bg-white disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleResponse('accepted')}
+                    disabled={isResponding}
+                    className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
+                  >
+                    Accept
+                  </button>
+                </>
+              )}
+              {isExchangeAccepted && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/exchange-tracking/${swap._id}`)}
+                  className="px-4 py-2 rounded-lg bg-secondary-500 text-white text-sm font-medium hover:bg-secondary-600"
+                >
+                  Track Exchange
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {canPropose && (
+      <form onSubmit={handleProposal} className="space-y-6">
         <MethodOption
           active={selectedMethod === 'meetup'}
           icon={<MapPin size={24} />}
@@ -226,10 +349,11 @@ export function ExchangeMethod() {
             disabled={!selectedMethod || isSubmitting}
             className="w-full py-3 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Confirming...' : 'Confirm Exchange Method'}
+            {isSubmitting ? 'Proposing...' : isMyPendingProposal ? 'Update Proposal' : 'Propose Exchange Method'}
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

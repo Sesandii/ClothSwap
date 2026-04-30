@@ -14,6 +14,7 @@ type ClothesItem = {
 
 type ExchangeMethod = {
   method?: 'meetup' | 'delivery' | 'collection';
+  status?: 'pending' | 'accepted' | 'rejected';
   details?: Record<string, string>;
   confirmedAt?: string;
 };
@@ -65,8 +66,24 @@ export function ExchangeTracking() {
     return <div className="p-8 text-center text-warmGray-500">Loading tracking...</div>;
   }
 
-  if (!swap || !swap.exchangeMethod?.method) {
-    return <div className="p-8 text-center">Tracking info not found.</div>;
+  const isExchangeAgreed = Boolean(
+    swap?.exchangeMethod?.method &&
+      (swap.exchangeMethod.status === 'accepted' ||
+        (!swap.exchangeMethod.status && swap.exchangeMethod.confirmedAt))
+  );
+
+  if (!swap || !swap.exchangeMethod?.method || !isExchangeAgreed) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-warmGray-700 font-medium mb-3">Exchange method is not agreed yet.</p>
+        <button
+          onClick={() => navigate(id ? `/exchange/${id}` : '/my-swaps')}
+          className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600"
+        >
+          Review Exchange Method
+        </button>
+      </div>
+    );
   }
 
   const exchange = swap.exchangeMethod;
