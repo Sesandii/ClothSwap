@@ -1,4 +1,4 @@
-import React, { Children, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -10,11 +10,50 @@ import {
   Star
 } from
   'lucide-react';
-import { clothes } from '../data/mockData';
 import { ClothesCard } from '../components/ClothesCard';
 import { getStoredToken } from '../lib/auth';
+import { apiFetch } from '../lib/api';
+
+type ClothesUser = {
+  _id?: string;
+  name?: string;
+  location?: string;
+  profilePic?: string;
+};
+
+type ClothesRecord = {
+  _id: string;
+  title: string;
+  brand?: string;
+  description: string;
+  size: string;
+  category: string;
+  condition: string;
+  location?: string;
+  images?: string[];
+  createdAt: string;
+  user?: ClothesUser | string;
+};
+
+type FeaturedClothesItem = {
+  id: string;
+  title: string;
+  brand: string;
+  size: string;
+  condition: string;
+  location: string;
+  imageUrl: string;
+  createdAt: string;
+};
+
+const placeholderImage =
+  'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
+
 export function Landing() {
   const navigate = useNavigate();
+  const [featuredClothes, setFeaturedClothes] = useState<FeaturedClothesItem[]>([]);
+  const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
+  const [featuredError, setFeaturedError] = useState('');
 
   useEffect(() => {
     if (getStoredToken()) {
@@ -22,7 +61,54 @@ export function Landing() {
     }
   }, [navigate]);
 
-  const featuredClothes = clothes.slice(0, 4);
+  useEffect(() => {
+    const loadFeaturedClothes = async () => {
+      try {
+        setIsLoadingFeatured(true);
+        setFeaturedError('');
+
+        const response = await apiFetch('/api/clothes');
+
+        if (!response.ok) {
+          throw new Error('Unable to load fresh finds');
+        }
+
+        const data = (await response.json()) as ClothesRecord[];
+        const normalizedItems = data
+          .map((item) => {
+            const user = typeof item.user === 'object' ? item.user : undefined;
+
+            return {
+              id: item._id,
+              title: item.title,
+              brand: item.brand || user?.name || item.category,
+              size: item.size,
+              condition: item.condition,
+              location: item.location || user?.location || 'Online',
+              imageUrl:
+                item.images && item.images.length > 0 ? item.images[0] : placeholderImage,
+              createdAt: item.createdAt
+            };
+          })
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          .slice(0, 4);
+
+        setFeaturedClothes(normalizedItems);
+      } catch (err) {
+        setFeaturedError(
+          err instanceof Error ? err.message : 'Unable to load fresh finds'
+        );
+      } finally {
+        setIsLoadingFeatured(false);
+      }
+    };
+
+    loadFeaturedClothes();
+  }, []);
+
   const containerVariants = {
     hidden: {
       opacity: 0
@@ -219,11 +305,31 @@ export function Landing() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredClothes.map((item) =>
-              <ClothesCard key={item.id} {...item} imageUrl={item.images[0]} />
-            )}
-          </div>
+          {isLoadingFeatured ? (
+            <div className="py-12 text-center text-warmGray-600">
+              Loading fresh finds...
+            </div>
+          ) : featuredError ? (
+            <div className="py-12 text-center text-red-600">{featuredError}</div>
+          ) : featuredClothes.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredClothes.map((item) =>
+                <ClothesCard
+                  key={item.id}
+                  id={item.id}
+                  title={item.title}
+                  brand={item.brand}
+                  size={item.size}
+                  condition={item.condition}
+                  location={item.location}
+                  imageUrl={item.imageUrl} />
+              )}
+            </div>
+          ) : (
+            <div className="py-12 text-center text-warmGray-600">
+              No fresh finds yet.
+            </div>
+          )}
 
           <div className="mt-10 text-center sm:hidden">
             <Link

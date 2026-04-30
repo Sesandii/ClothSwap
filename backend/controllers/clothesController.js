@@ -1,4 +1,6 @@
 const Clothes = require("../models/Clothes");
+const SwapRequest = require("../models/SwapRequest");
+const { transferCompletedSwapOwnership } = require("../utils/completeSwapOwnership");
 
 const toObjectId = (value) => value && value.toString();
 
@@ -57,6 +59,8 @@ const getAllClothes = async (req, res) => {
 
 const getCurrentUserClothes = async (req, res) => {
   try {
+    await reconcileCompletedSwapOwnership(req.user);
+
     const clothes = await Clothes.find({ user: req.user })
       .populate("user", "name location profilePic")
       .sort({ createdAt: -1 });
@@ -65,6 +69,28 @@ const getCurrentUserClothes = async (req, res) => {
   } catch (err) {
     return res.status(500).json({ message: "Server error" });
   }
+};
+
+const reconcileCompletedSwapOwnership = async (userId) => {
+  const ownedClothes = await Clothes.find({ user: userId }).select("_id");
+  const ownedClothesIds = ownedClothes.map((item) => item._id);
+
+  const completedSwaps = await SwapRequest.find({
+    status: "completed",
+    $or: [
+      { requester: userId },
+      { offeredOwner: userId },
+      { requestedOwner: userId },
+      { offeredClothes: { $in: ownedClothesIds } },
+      { requestedClothes: { $in: ownedClothesIds } },
+    ],
+  })
+    .populate("offeredClothes", "user")
+    .populate("requestedClothes", "user");
+
+  await Promise.all(
+    completedSwaps.map((swapRequest) => transferCompletedSwapOwnership(swapRequest))
+  );
 };
 
 const getClothesById = async (req, res) => {

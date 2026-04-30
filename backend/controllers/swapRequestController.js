@@ -3,6 +3,7 @@ const Clothes = require("../models/Clothes");
 const User = require("../models/User");
 const Review = require("../models/Review");
 const createNotification = require("../utils/createNotification");
+const { transferCompletedSwapOwnership } = require("../utils/completeSwapOwnership");
 
 const swapRequestPopulation = [
   {
@@ -123,11 +124,30 @@ const getMySwapRequests = async (req, res) => {
         { requester: req.user },
         { offeredOwner: req.user },
         { requestedOwner: req.user },
+        { offeredClothes: { $in: myClothesIds } },
         { requestedClothes: { $in: myClothesIds } },
       ],
     })
       .populate(swapRequestPopulation)
       .sort({ createdAt: -1 });
+
+    await Promise.all(
+      swapRequests.map(async (swapRequest) => {
+        const offeredOwnerBefore = swapRequest.offeredOwner;
+        const requestedOwnerBefore = swapRequest.requestedOwner;
+
+        ensureParticipantSnapshots(swapRequest);
+
+        if (
+          !offeredOwnerBefore ||
+          !requestedOwnerBefore ||
+          offeredOwnerBefore.toString() !== swapRequest.offeredOwner.toString() ||
+          requestedOwnerBefore.toString() !== swapRequest.requestedOwner.toString()
+        ) {
+          await swapRequest.save();
+        }
+      })
+    );
 
     return res.json(swapRequests);
   } catch (err) {
@@ -234,20 +254,8 @@ const updateSwapRequestStatus = async (req, res) => {
 
     swapRequest.status = "completed";
     swapRequest.completedAt = new Date();
-    const offeredItemId = swapRequest.offeredClothes._id;
-    const requestedItemId = swapRequest.requestedClothes._id;
-    const offeredOwnerId = getOfferedOwnerId(swapRequest);
-    const requestedOwnerId = getRequestedOwnerId(swapRequest);
-
-    await Promise.all([
-      swapRequest.save(),
-      Clothes.findByIdAndUpdate(offeredItemId, {
-        $set: { user: requestedOwnerId, status: "swapped" },
-      }),
-      Clothes.findByIdAndUpdate(requestedItemId, {
-        $set: { user: offeredOwnerId, status: "swapped" },
-      }),
-    ]);
+    await swapRequest.save();
+    await transferCompletedSwapOwnership(swapRequest);
 
     await notifyStatusChange(swapRequest, req.user, "completed");
     return res.json(await populateSwapRequest(swapRequest._id));

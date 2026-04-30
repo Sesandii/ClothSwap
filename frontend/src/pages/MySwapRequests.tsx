@@ -18,7 +18,7 @@ type ClothesItem = {
   _id: string;
   title: string;
   images?: string[];
-  user?: UserRef;
+  user?: UserRef | string;
 };
 
 type SwapRequestItem = {
@@ -43,6 +43,38 @@ const placeholderImage =
   'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
 
 const getUserId = () => getStoredUser()._id || getStoredUser().id || '';
+
+const getRefId = (value?: UserRef | string) =>
+  typeof value === 'string' ? value : value?._id || '';
+
+const getRequestSide = (request: SwapRequestItem, currentUserId: string): TabType | null => {
+  const offeredOwnerId = getRefId(request.offeredOwner) || getRefId(request.requester);
+  const requestedOwnerId =
+    getRefId(request.requestedOwner) || getRefId(request.requestedClothes?.user);
+
+  if (offeredOwnerId === currentUserId) {
+    return 'sent';
+  }
+
+  if (requestedOwnerId === currentUserId) {
+    return 'received';
+  }
+
+  if (request.status === 'completed') {
+    const offeredCurrentOwnerId = getRefId(request.offeredClothes?.user);
+    const requestedCurrentOwnerId = getRefId(request.requestedClothes?.user);
+
+    if (requestedCurrentOwnerId === currentUserId) {
+      return 'sent';
+    }
+
+    if (offeredCurrentOwnerId === currentUserId) {
+      return 'received';
+    }
+  }
+
+  return null;
+};
 
 export function MySwapRequests() {
   const navigate = useNavigate();
@@ -77,11 +109,7 @@ export function MySwapRequests() {
 
   const filteredRequests = useMemo(() => {
     return swapRequests
-      .filter((request) =>
-        activeTab === 'sent'
-          ? (request.offeredOwner?._id || request.requester?._id) === currentUserId
-          : (request.requestedOwner?._id || request.requestedClothes?.user?._id) === currentUserId
-      )
+      .filter((request) => getRequestSide(request, currentUserId) === activeTab)
       .filter((request) => statusFilter === 'all' || request.status === statusFilter);
   }, [activeTab, currentUserId, statusFilter, swapRequests]);
 
@@ -184,8 +212,9 @@ export function MySwapRequests() {
           filteredRequests.map((request) => {
             const requestedItem = request.requestedClothes;
             const offeredItem = request.offeredClothes;
+            const requestSide = getRequestSide(request, currentUserId) || activeTab;
             const otherUser =
-              activeTab === 'sent'
+              requestSide === 'sent'
                 ? request.requestedOwner || requestedItem.user
                 : request.offeredOwner || request.requester;
             const isBusy = busyId === request._id;
@@ -199,16 +228,16 @@ export function MySwapRequests() {
               >
                 <div className="flex items-center gap-4 flex-1 w-full justify-center md:justify-start">
                   <SwapItem
-                    item={activeTab === 'sent' ? offeredItem : requestedItem}
-                    label={activeTab === 'sent' ? 'You offer' : 'Your item'}
+                    item={requestSide === 'sent' ? offeredItem : requestedItem}
+                    label={requestSide === 'sent' ? 'You offer' : 'Your item'}
                   />
                   <div className="flex flex-col items-center px-2">
                     <ArrowRightLeft className="text-warmGray-300 mb-1" />
                     <StatusBadge status={request.status} />
                   </div>
                   <SwapItem
-                    item={activeTab === 'sent' ? requestedItem : offeredItem}
-                    label={activeTab === 'sent' ? 'You want' : 'They offer'}
+                    item={requestSide === 'sent' ? requestedItem : offeredItem}
+                    label={requestSide === 'sent' ? 'You want' : 'They offer'}
                   />
                 </div>
 
