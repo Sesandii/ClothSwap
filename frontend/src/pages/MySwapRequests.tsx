@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRightLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { apiFetch } from '../lib/api';
 import { getAvatarUrl, getStoredUser } from '../lib/auth';
 import { StatusBadge } from '../components/StatusBadge';
@@ -83,6 +84,14 @@ export function MySwapRequests() {
   const [swapRequests, setSwapRequests] = useState<SwapRequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<{
+    id: string;
+    status: 'accepted' | 'rejected' | 'completed';
+    title: string;
+    message: string;
+    confirmLabel: string;
+    tone?: 'primary' | 'danger';
+  } | null>(null);
   const currentUserId = getUserId();
 
   const loadSwaps = async () => {
@@ -138,6 +147,32 @@ export function MySwapRequests() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const confirmStatusUpdate = (
+    id: string,
+    status: 'accepted' | 'rejected' | 'completed'
+  ) => {
+    const details = {
+      accepted: {
+        title: 'Accept swap?',
+        message: 'Accept this swap request and move it to the exchange step.',
+        confirmLabel: 'Accept'
+      },
+      rejected: {
+        title: 'Reject swap?',
+        message: 'Reject this swap request? This cannot be undone.',
+        confirmLabel: 'Reject',
+        tone: 'danger' as const
+      },
+      completed: {
+        title: 'Complete swap?',
+        message: 'Mark this swap as completed?',
+        confirmLabel: 'Complete'
+      },
+    };
+
+    setPendingStatus({ id, status, ...details[status] });
   };
 
   return (
@@ -266,14 +301,14 @@ export function MySwapRequests() {
                     {activeTab === 'received' && request.status === 'pending' && (
                       <>
                         <button
-                          onClick={() => void updateStatus(request._id, 'rejected')}
+                          onClick={() => confirmStatusUpdate(request._id, 'rejected')}
                           disabled={isBusy}
                           className="flex-1 md:flex-none px-4 py-2 border border-warmGray-200 text-warmGray-700 rounded-lg text-sm font-medium hover:bg-warmGray-50 transition-colors disabled:opacity-50"
                         >
                           Reject
                         </button>
                         <button
-                          onClick={() => void updateStatus(request._id, 'accepted')}
+                          onClick={() => confirmStatusUpdate(request._id, 'accepted')}
                           disabled={isBusy}
                           className="flex-1 md:flex-none px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
                         >
@@ -312,6 +347,21 @@ export function MySwapRequests() {
           })
         )}
       </div>
+      <ConfirmDialog
+        isOpen={Boolean(pendingStatus)}
+        title={pendingStatus?.title || ''}
+        message={pendingStatus?.message || ''}
+        confirmLabel={pendingStatus?.confirmLabel}
+        tone={pendingStatus?.tone}
+        onCancel={() => setPendingStatus(null)}
+        onConfirm={() => {
+          const action = pendingStatus;
+          setPendingStatus(null);
+          if (action) {
+            void updateStatus(action.id, action.status);
+          }
+        }}
+      />
     </div>
   );
 }

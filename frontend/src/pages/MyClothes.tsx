@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ClothesCard } from '../components/ClothesCard';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { apiFetch } from '../lib/api';
 import { getStoredToken } from '../lib/auth';
 
@@ -21,9 +22,18 @@ type ClothesItem = {
 const placeholderImage =
   'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
 
+type PendingConfirmation = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  tone?: 'primary' | 'danger';
+  onConfirm: () => void;
+};
+
 export function MyClothes() {
   const [items, setItems] = useState<ClothesItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
 
   useEffect(() => {
     const loadMyClothes = async () => {
@@ -90,10 +100,6 @@ export function MyClothes() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) {
-      return;
-    }
-
     const token = getStoredToken();
 
     if (!token) return;
@@ -166,7 +172,15 @@ export function MyClothes() {
                   <Edit size={20} className="text-warmGray-700" />
                 </Link>
                 <button
-                  onClick={() => handleDelete(item._id, item.title)}
+                  onClick={() =>
+                    setPendingConfirmation({
+                      title: 'Delete item?',
+                      message: `Delete "${item.title}" from your wardrobe? This cannot be undone.`,
+                      confirmLabel: 'Delete',
+                      tone: 'danger',
+                      onConfirm: () => void handleDelete(item._id, item.title)
+                    })
+                  }
                   className="p-3 bg-white rounded-xl hover:bg-primary-50 transition-colors"
                   title="Delete"
                 >
@@ -174,7 +188,11 @@ export function MyClothes() {
                 </button>
               </div>
 
-              <ItemStatusControl item={item} onToggleStatus={toggleStatus} />
+              <ItemStatusControl
+                item={item}
+                onToggleStatus={toggleStatus}
+                onRequestConfirm={setPendingConfirmation}
+              />
             </div>
           ))}
         </motion.div>
@@ -202,16 +220,31 @@ export function MyClothes() {
           </Link>
         </motion.div>
       )}
+      <ConfirmDialog
+        isOpen={Boolean(pendingConfirmation)}
+        title={pendingConfirmation?.title || ''}
+        message={pendingConfirmation?.message || ''}
+        confirmLabel={pendingConfirmation?.confirmLabel}
+        tone={pendingConfirmation?.tone}
+        onCancel={() => setPendingConfirmation(null)}
+        onConfirm={() => {
+          const action = pendingConfirmation?.onConfirm;
+          setPendingConfirmation(null);
+          action?.();
+        }}
+      />
     </div>
   );
 }
 
 function ItemStatusControl({
   item,
-  onToggleStatus
+  onToggleStatus,
+  onRequestConfirm
 }: {
   item: ClothesItem;
   onToggleStatus: (id: string, nextStatus: 'available' | 'hidden') => void;
+  onRequestConfirm: (confirmation: PendingConfirmation) => void;
 }) {
   if (item.status === 'swapped') {
     return (
@@ -221,13 +254,12 @@ function ItemStatusControl({
         </div>
         <button
           onClick={() => {
-            const shouldRelist = window.confirm(
-              'Relist this item? It will become visible in Browse Clothes and other users can request it.'
-            );
-
-            if (shouldRelist) {
-              onToggleStatus(item._id, 'available');
-            }
+            onRequestConfirm({
+              title: 'Relist item?',
+              message: 'This item will become visible in Browse Clothes and other users can request it.',
+              confirmLabel: 'Relist item',
+              onConfirm: () => onToggleStatus(item._id, 'available')
+            });
           }}
           className="w-full py-2 px-4 rounded-xl bg-secondary-100 text-secondary-700 hover:bg-secondary-200 font-medium text-sm transition-colors"
         >
@@ -242,7 +274,17 @@ function ItemStatusControl({
   return (
     <div className="mt-3">
       <button
-        onClick={() => onToggleStatus(item._id, isAvailable ? 'hidden' : 'available')}
+        onClick={() => {
+          const nextStatus = isAvailable ? 'hidden' : 'available';
+          onRequestConfirm({
+            title: isAvailable ? 'Hide item?' : 'Make item available?',
+            message: isAvailable
+              ? 'This item will no longer appear in Browse Clothes.'
+              : 'Other users will be able to request this item.',
+            confirmLabel: isAvailable ? 'Hide item' : 'Make available',
+            onConfirm: () => onToggleStatus(item._id, nextStatus)
+          });
+        }}
         className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${
           isAvailable
             ? 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'

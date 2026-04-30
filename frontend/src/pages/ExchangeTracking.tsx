@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Truck, Building, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StatusTimeline } from '../components/StatusTimeline';
 
 type ClothesItem = {
@@ -34,6 +35,7 @@ export function ExchangeTracking() {
   const [swap, setSwap] = useState<SwapRequestItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
   useEffect(() => {
     const loadSwap = async () => {
@@ -206,13 +208,24 @@ export function ExchangeTracking() {
           Report Issue
         </button>
         <button
-          onClick={handleComplete}
+          onClick={() => setShowCompleteConfirm(true)}
           disabled={swap.status === 'completed' || isCompleting}
           className="flex-1 py-3 bg-secondary-500 text-white rounded-xl font-medium hover:bg-secondary-600 transition-colors disabled:opacity-50"
         >
           {swap.status === 'completed' ? 'Completed' : isCompleting ? 'Completing...' : 'Mark as Completed'}
         </button>
       </div>
+      <ConfirmDialog
+        isOpen={showCompleteConfirm}
+        title="Complete swap?"
+        message="Mark this swap as completed? The exchanged items will move to each user's wardrobe."
+        confirmLabel="Complete swap"
+        onCancel={() => setShowCompleteConfirm(false)}
+        onConfirm={() => {
+          setShowCompleteConfirm(false);
+          void handleComplete();
+        }}
+      />
     </div>
   );
 }
