@@ -98,9 +98,21 @@ export async function getMessageConversations() {
     });
 }
 
+export async function getUnreadMessageCount() {
+    return apiFetch('/api/messages/unread-count', {
+        method: 'GET',
+    });
+}
+
 export async function getConversationWithUser(userId: string) {
     return apiFetch(`/api/messages/conversations/${userId}`, {
         method: 'GET',
+    });
+}
+
+export async function markMessagesReadFromUser(userId: string) {
+    return apiFetch(`/api/messages/conversations/${userId}/read`, {
+        method: 'PATCH',
     });
 }
 

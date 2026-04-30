@@ -1,4 +1,5 @@
 const Conversation = require("../models/Conversation");
+const Notification = require("../models/Notification");
 const User = require("../models/User");
 const createNotification = require("../utils/createNotification");
 
@@ -59,6 +60,40 @@ const getConversations = async (req, res) => {
             .sort({ lastMessageAt: -1, createdAt: -1 });
 
         return res.json(conversations.map((conversation) => normalizeConversation(conversation, req.user)));
+    } catch (err) {
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const getUnreadMessageCount = async (req, res) => {
+    try {
+        const count = await Notification.countDocuments({
+            user: req.user,
+            type: "new_message",
+            read: false,
+        });
+
+        return res.json({ count });
+    } catch (err) {
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const markMessagesReadByUser = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        await Notification.updateMany(
+            {
+                user: req.user,
+                actor: userId,
+                type: "new_message",
+                read: false,
+            },
+            { read: true }
+        );
+
+        return res.json({ message: "Messages marked as read" });
     } catch (err) {
         return res.status(500).json({ message: "Server error" });
     }
@@ -172,6 +207,8 @@ const sendMessage = async (req, res) => {
 
 module.exports = {
     getConversations,
+    getUnreadMessageCount,
     getConversationByUser,
+    markMessagesReadByUser,
     sendMessage,
 };

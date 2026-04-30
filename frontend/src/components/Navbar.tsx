@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, Search, Heart, MessageSquare } from 'lucide-react';
 import { getAuthenticatedUser, getInitials, getStoredToken, isRealProfilePic, logout } from '../lib/auth';
-import { getUnreadNotificationCount } from '../lib/api';
+import { getUnreadMessageCount, getUnreadNotificationCount } from '../lib/api';
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const location = useLocation();
   const isLoggedIn = Boolean(getStoredToken());
   const currentUser = getAuthenticatedUser();
@@ -29,6 +30,7 @@ export function Navbar() {
   useEffect(() => {
     if (!isLoggedIn) {
       setUnreadNotifications(0);
+      setUnreadMessages(0);
       return;
     }
 
@@ -52,6 +54,37 @@ export function Navbar() {
 
     return () => {
       window.removeEventListener('clothswap:notifications-updated', loadUnreadNotifications);
+    };
+  }, [isLoggedIn, location.pathname]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const loadUnreadMessages = async () => {
+      try {
+        const response = await getUnreadMessageCount();
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { count?: number };
+        setUnreadMessages(data.count || 0);
+      } catch {
+        setUnreadMessages(0);
+      }
+    };
+
+    void loadUnreadMessages();
+    const intervalId = window.setInterval(loadUnreadMessages, 15000);
+    window.addEventListener('clothswap:messages-updated', loadUnreadMessages);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('clothswap:messages-updated', loadUnreadMessages);
     };
   }, [isLoggedIn, location.pathname]);
 
@@ -103,7 +136,9 @@ export function Navbar() {
                   className="p-2 text-warmGray-400 hover:text-warmGray-500 transition-colors relative">
 
                   <MessageSquare size={20} />
-                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
+                  {unreadMessages > 0 && (
+                    <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
+                  )}
                 </Link>
                 <Link
                   to="/notifications"

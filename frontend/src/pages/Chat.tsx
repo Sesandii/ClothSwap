@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Search, Send } from 'lucide-react';
 import { toast } from 'sonner';
-import { getConversationWithUser, getMessageConversations, sendMessageToUser } from '../lib/api';
+import {
+  getConversationWithUser,
+  getMessageConversations,
+  markMessagesReadFromUser,
+  sendMessageToUser,
+} from '../lib/api';
 import { getAuthenticatedUser, getAvatarUrl } from '../lib/auth';
 
 type UserSummary = {
@@ -99,6 +104,12 @@ export function Chat() {
 
       const detailData = (await detailResponse.json()) as ConversationRecord;
       setActiveConversation(detailData);
+      const readResponse = await markMessagesReadFromUser(selectedUserId);
+
+      if (readResponse.ok) {
+        window.dispatchEvent(new Event('clothswap:messages-updated'));
+        window.dispatchEvent(new Event('clothswap:notifications-updated'));
+      }
 
       const selectedPartnerId = getUserId(getPartner(detailData, currentUserId));
 
