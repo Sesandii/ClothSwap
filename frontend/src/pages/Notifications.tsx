@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -35,30 +35,48 @@ export function Notifications() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
-    const loadNotifications = async () => {
-      try {
+  const loadNotifications = useCallback(async (showLoading = false) => {
+    try {
+      if (showLoading) {
         setIsLoading(true);
-        setLoadError('');
+      }
+      setLoadError('');
 
-        const response = await getNotifications();
+      const response = await getNotifications();
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to load notifications');
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to load notifications');
+      }
 
-        const data = (await response.json()) as NotificationRecord[];
-        setNotifications(data);
-      } catch (error) {
-        setLoadError(error instanceof Error ? error.message : 'Unable to load notifications');
-      } finally {
+      const data = (await response.json()) as NotificationRecord[];
+      setNotifications(data);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load notifications');
+    } finally {
+      if (showLoading) {
         setIsLoading(false);
       }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleNotificationsUpdated = () => {
+      void loadNotifications();
     };
 
-    void loadNotifications();
-  }, []);
+    void loadNotifications(true);
+    window.addEventListener('clothswap:notifications-updated', handleNotificationsUpdated);
+
+    const intervalId = window.setInterval(() => {
+      void loadNotifications();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('clothswap:notifications-updated', handleNotificationsUpdated);
+    };
+  }, [loadNotifications]);
 
   const handleMarkAllRead = async () => {
     try {

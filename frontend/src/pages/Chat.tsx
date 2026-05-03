@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Search, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -85,7 +85,7 @@ export function Chat() {
     setShowListOnMobile(!userId);
   }, [userId]);
 
-  const refreshConversations = async (selectedUserId?: string) => {
+  const refreshConversations = useCallback(async (selectedUserId?: string) => {
     const listResponse = await getMessageConversations();
 
     if (!listResponse.ok) {
@@ -139,7 +139,7 @@ export function Chat() {
     }
 
     setActiveConversation(null);
-  };
+  }, [currentUserId]);
 
   useEffect(() => {
     let mounted = true;
@@ -161,19 +161,17 @@ export function Chat() {
     return () => {
       mounted = false;
     };
-  }, [userId]);
+  }, [refreshConversations, userId]);
 
   useEffect(() => {
-    if (userId) {
-      return;
-    }
-
     const intervalId = window.setInterval(() => {
-      void refreshConversations();
-    }, 15000);
+      void refreshConversations(userId).catch(() => {
+        // Keep polling quiet after the initial load so transient network hiccups do not spam users.
+      });
+    }, userId ? 5000 : 10000);
 
     return () => window.clearInterval(intervalId);
-  }, [userId]);
+  }, [refreshConversations, userId]);
 
   const filteredConversations = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -236,6 +234,8 @@ export function Chat() {
 
         return [conversation, ...next];
       });
+      window.dispatchEvent(new Event('clothswap:messages-updated'));
+      window.dispatchEvent(new Event('clothswap:notifications-updated'));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
     } finally {

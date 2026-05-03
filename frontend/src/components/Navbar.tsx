@@ -50,9 +50,11 @@ export function Navbar() {
     };
 
     void loadUnreadNotifications();
+    const intervalId = window.setInterval(loadUnreadNotifications, 15000);
     window.addEventListener('clothswap:notifications-updated', loadUnreadNotifications);
 
     return () => {
+      window.clearInterval(intervalId);
       window.removeEventListener('clothswap:notifications-updated', loadUnreadNotifications);
     };
   }, [isLoggedIn, location.pathname]);
