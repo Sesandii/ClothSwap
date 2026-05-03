@@ -1,21 +1,42 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+if (!process.env.RENDER) {
+  require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
+}
 
 const connectDB = require("./config/db");
 
 const app = express();
 
+const normalizeOrigin = (origin) => {
+  if (!origin) {
+    return "";
+  }
+
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return origin.replace(/\/$/, "");
+  }
+};
+
 const allowedOrigins = (process.env.CLIENT_URL || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => normalizeOrigin(origin.trim()))
   .filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      const requestOrigin = normalizeOrigin(origin);
+
+      if (
+        !requestOrigin ||
+        allowedOrigins.length === 0 ||
+        allowedOrigins.includes(requestOrigin)
+      ) {
         return callback(null, true);
       }
 
@@ -63,10 +84,25 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
+  console.log("Startup config:", {
+    nodeEnv: process.env.NODE_ENV || "unset",
+    render: process.env.RENDER || "false",
+    hasDatabaseUrl: Boolean(process.env.DATABASE_URL || process.env.MONGO_URI),
+    hasJwtSecret: Boolean(process.env.JWT_SECRET),
+    clientUrl: process.env.CLIENT_URL || "unset",
+  });
+
+  if (!process.env.JWT_SECRET) {
+    throw new Error("Missing JWT_SECRET in environment variables.");
+  }
+
   await connectDB();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 };
 
-start();
+start().catch((error) => {
+  console.error("Server startup failed:", error.message);
+  process.exit(1);
+});
