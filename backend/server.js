@@ -29,6 +29,8 @@ const allowedOrigins = (process.env.CLIENT_URL || "")
 
 app.use(
   cors({
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"],
     origin: (origin, callback) => {
       const requestOrigin = normalizeOrigin(origin);
 
