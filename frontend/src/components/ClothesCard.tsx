@@ -36,7 +36,7 @@ export function ClothesCard({
       }}
       className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-warmGray-100 flex flex-col h-full">
 
-      <div className="relative aspect-[4/5] overflow-hidden bg-warmGray-100">
+      <div className="relative aspect-[3/4] overflow-hidden bg-warmGray-100">
         <img
           src={imageUrl}
           alt={title}

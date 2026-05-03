@@ -60,7 +60,6 @@ const transferCompletedSwapOwnership = async (swapRequest) => {
           user: requestedOwnerId,
           status: "swapped",
           receivedFromSwap: swapRequest._id,
-          relistedAt: null,
         },
       })
     );
@@ -73,7 +72,6 @@ const transferCompletedSwapOwnership = async (swapRequest) => {
           user: offeredOwnerId,
           status: "swapped",
           receivedFromSwap: swapRequest._id,
-          relistedAt: null,
         },
       })
     );

@@ -177,9 +177,9 @@ export function ClothesDetails() {
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="space-y-4"
+                    className="space-y-4 lg:max-w-xl"
                 >
-                    <div className="aspect-[4/5] rounded-2xl overflow-hidden bg-warmGray-100">
+                    <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-warmGray-100">
                         <img
                             src={itemImages[selectedImage] || itemImages[0]}
                             alt={item.title}
@@ -192,7 +192,7 @@ export function ClothesDetails() {
                                 <button
                                     key={index}
                                     onClick={() => setSelectedImage(index)}
-                                    className={`aspect-square w-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
+                                    className={`aspect-square w-16 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
                                         ? 'border-primary-500 scale-105'
                                         : 'border-transparent hover:border-warmGray-300'
                                         }`}

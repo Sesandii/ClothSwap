@@ -8,6 +8,7 @@ const {
   getClothesById,
   updateClothesItem,
   updateClothesStatus,
+  relistClothesItem,
   deleteClothesItem,
 } = require("../controllers/clothesController");
 
@@ -17,6 +18,7 @@ router.get("/me", authMiddleware, getCurrentUserClothes);
 router.get("/:id", getClothesById);
 router.put("/:id", authMiddleware, updateClothesItem);
 router.patch("/:id/status", authMiddleware, updateClothesStatus);
+router.patch("/:id/relist", authMiddleware, relistClothesItem);
 router.delete("/:id", authMiddleware, deleteClothesItem);
 
 module.exports = router;

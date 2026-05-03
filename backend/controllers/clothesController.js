@@ -190,18 +190,62 @@ const updateClothesStatus = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const wasReceivedFromSwap = clothesItem.status === "swapped";
+    if (clothesItem.status === "swapped") {
+      return res.status(400).json({
+        message: "Swapped items cannot be changed",
+      });
+    }
 
     clothesItem.status = status;
-
-    if (wasReceivedFromSwap && status === "available") {
-      clothesItem.relistedAt = new Date();
-    }
 
     await clothesItem.save();
 
     return res.json(clothesItem);
   } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const relistClothesItem = async (req, res) => {
+  try {
+    const clothesItem = await Clothes.findById(req.params.id);
+
+    if (!clothesItem) {
+      return res.status(404).json({ message: "Clothes item not found" });
+    }
+
+    if (toObjectId(clothesItem.user) !== toObjectId(req.user)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    if (clothesItem.status !== "swapped") {
+      return res.status(400).json({
+        message: "Only swapped items can be relisted",
+      });
+    }
+
+    if (!Array.isArray(clothesItem.images) || clothesItem.images.length === 0) {
+      return res.status(400).json({
+        message: "Add at least one photo before relisting this item",
+      });
+    }
+
+    clothesItem.status = "available";
+    clothesItem.createdAt = new Date();
+
+    await clothesItem.save();
+
+    const populatedClothes = await Clothes.findById(clothesItem._id).populate(
+      "user",
+      "name location profilePic"
+    );
+
+    return res.json(populatedClothes);
+  } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(404).json({ message: "Clothes item not found" });
+    }
+
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -233,5 +277,6 @@ module.exports = {
   getClothesById,
   updateClothesItem,
   updateClothesStatus,
+  relistClothesItem,
   deleteClothesItem,
 };

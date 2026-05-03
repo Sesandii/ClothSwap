@@ -40,10 +40,6 @@ const clothesSchema = new mongoose.Schema({
     ref: "SwapRequest",
     default: null,
   },
-  relistedAt: {
-    type: Date,
-    default: null,
-  },
   gender: {
     type: String,
     default: "",

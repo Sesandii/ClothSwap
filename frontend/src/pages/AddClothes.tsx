@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { categories, sizes, genders, conditions } from '../data/mockData';
+import { categories, sizes, genders, conditions, categorySizes } from '../data/mockData';
 import { apiFetch } from '../lib/api';
 import { getStoredUser, getStoredToken } from '../lib/auth';
 
@@ -205,14 +205,38 @@ export function AddClothes() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+
+    // Reset size when category changes
+    if (name === 'category') {
+      setFormData({
+        ...formData,
+        [name]: value,
+        size: '' // Reset size when category changes
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
+  };
+
+  // Get available sizes for the selected category
+  const getAvailableSizes = () => {
+    if (!formData.category) {
+      return [];
+    }
+    return categorySizes[formData.category] || [];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (images.length === 0) {
+      toast.error('Please upload at least one photo');
+      return;
+    }
 
     const token = getStoredToken();
 
@@ -281,7 +305,7 @@ export function AddClothes() {
         <form onSubmit={handleSubmit} className="space-y-8">
           <div>
             <label className="block text-sm font-medium text-warmGray-700 mb-3">
-              Photos
+              Photos <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {images.map((image, index) => (
@@ -323,7 +347,7 @@ export function AddClothes() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label htmlFor="title" className="block text-sm font-medium text-warmGray-700 mb-2">
-                  Title *
+                  Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -342,7 +366,7 @@ export function AddClothes() {
                   htmlFor="category"
                   className="block text-sm font-medium text-warmGray-700 mb-2"
                 >
-                  Category *
+                  Category <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="category"
@@ -363,7 +387,7 @@ export function AddClothes() {
 
               <div>
                 <label htmlFor="size" className="block text-sm font-medium text-warmGray-700 mb-2">
-                  Size *
+                  Size <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="size"
@@ -372,9 +396,12 @@ export function AddClothes() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl border border-warmGray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   required
+                  disabled={!formData.category}
                 >
-                  <option value="">Select size</option>
-                  {sizes.map((size) => (
+                  <option value="">
+                    {formData.category ? 'Select size' : 'Please select a category first'}
+                  </option>
+                  {getAvailableSizes().map((size) => (
                     <option key={size} value={size}>
                       {size}
                     </option>
@@ -384,7 +411,7 @@ export function AddClothes() {
 
               <div>
                 <label htmlFor="brand" className="block text-sm font-medium text-warmGray-700 mb-2">
-                  Brand *
+                  Brand
                 </label>
                 <input
                   type="text"
@@ -394,13 +421,12 @@ export function AddClothes() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl border border-warmGray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="e.g., Levi's"
-                  required
                 />
               </div>
 
               <div>
                 <label htmlFor="color" className="block text-sm font-medium text-warmGray-700 mb-2">
-                  Color *
+                  Color
                 </label>
                 <input
                   type="text"
@@ -410,13 +436,12 @@ export function AddClothes() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl border border-warmGray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="e.g., Blue"
-                  required
                 />
               </div>
 
               <div>
                 <label htmlFor="gender" className="block text-sm font-medium text-warmGray-700 mb-2">
-                  Gender *
+                  Gender
                 </label>
                 <select
                   id="gender"
@@ -424,7 +449,6 @@ export function AddClothes() {
                   value={formData.gender}
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl border border-warmGray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  required
                 >
                   <option value="">Select gender</option>
                   {genders.map((gender) => (
@@ -440,7 +464,7 @@ export function AddClothes() {
                   htmlFor="condition"
                   className="block text-sm font-medium text-warmGray-700 mb-2"
                 >
-                  Condition *
+                  Condition <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="condition"
@@ -464,7 +488,7 @@ export function AddClothes() {
                   htmlFor="description"
                   className="block text-sm font-medium text-warmGray-700 mb-2"
                 >
-                  Description *
+                  Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="description"
@@ -483,7 +507,7 @@ export function AddClothes() {
                   htmlFor="location"
                   className="block text-sm font-medium text-warmGray-700 mb-2"
                 >
-                  Location *
+                  Location
                 </label>
                 <input
                   type="text"
@@ -493,7 +517,6 @@ export function AddClothes() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl border border-warmGray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="City, State"
-                  required
                 />
               </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ClothesCard } from '../components/ClothesCard';
@@ -17,6 +17,7 @@ type ClothesItem = {
   location: string;
   images: string[];
   status: 'available' | 'swapped' | 'hidden';
+  createdAt?: string;
 };
 
 const placeholderImage =
@@ -99,6 +100,43 @@ export function MyClothes() {
     }
   };
 
+  const handleRelist = async (id: string) => {
+    const token = getStoredToken();
+
+    if (!token) return;
+
+    try {
+      const response = await apiFetch(`/api/clothes/${id}/relist`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = (await response.json().catch(() => null)) as ClothesItem | { message?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(data && 'message' in data ? data.message : 'Unable to relist item');
+      }
+
+      if (!data || !('_id' in data)) {
+        throw new Error('Unable to relist item');
+      }
+
+      setItems((prev) => {
+        const relistedItem = { ...data, status: 'available' as const };
+        return [
+          relistedItem,
+          ...prev.filter((item) => item._id !== id)
+        ];
+      });
+      toast.success('Item relisted successfully', {
+        description: 'Other users can now request it for swaps.'
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Relist failed');
+    }
+  };
+
   const handleDelete = async (id: string, title: string) => {
     const token = getStoredToken();
 
@@ -149,7 +187,7 @@ export function MyClothes() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
         >
           {items.map((item) => (
             <div key={item._id} className="relative group">
@@ -191,6 +229,7 @@ export function MyClothes() {
               <ItemStatusControl
                 item={item}
                 onToggleStatus={toggleStatus}
+                onRelist={handleRelist}
                 onRequestConfirm={setPendingConfirmation}
               />
             </div>
@@ -240,10 +279,12 @@ export function MyClothes() {
 function ItemStatusControl({
   item,
   onToggleStatus,
+  onRelist,
   onRequestConfirm
 }: {
   item: ClothesItem;
   onToggleStatus: (id: string, nextStatus: 'available' | 'hidden') => void;
+  onRelist: (id: string) => void;
   onRequestConfirm: (confirmation: PendingConfirmation) => void;
 }) {
   if (item.status === 'swapped') {
@@ -253,17 +294,18 @@ function ItemStatusControl({
           Received from swap
         </div>
         <button
-          onClick={() => {
+          onClick={() =>
             onRequestConfirm({
               title: 'Relist item?',
-              message: 'This item will become visible in Browse Clothes and other users can request it.',
+              message: 'This item will become available in Browse Clothes so other users can request it.',
               confirmLabel: 'Relist item',
-              onConfirm: () => onToggleStatus(item._id, 'available')
-            });
-          }}
-          className="w-full py-2 px-4 rounded-xl bg-secondary-100 text-secondary-700 hover:bg-secondary-200 font-medium text-sm transition-colors"
+              onConfirm: () => onRelist(item._id)
+            })
+          }
+          className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-primary-500 text-white font-medium text-sm hover:bg-primary-600 transition-colors"
         >
-          Relist item
+          <RotateCcw size={16} />
+          Relist
         </button>
       </div>
     );
@@ -285,11 +327,10 @@ function ItemStatusControl({
             onConfirm: () => onToggleStatus(item._id, nextStatus)
           });
         }}
-        className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${
-          isAvailable
+        className={`w-full py-2 px-4 rounded-xl font-medium text-sm transition-colors ${isAvailable
             ? 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
             : 'bg-warmGray-100 text-warmGray-700 hover:bg-warmGray-200'
-        }`}
+          }`}
       >
         {isAvailable ? 'Available' : 'Hidden'}
       </button>
