@@ -27,6 +27,13 @@ const allowedOrigins = (process.env.CLIENT_URL || "")
   .map((origin) => normalizeOrigin(origin.trim()))
   .filter(Boolean);
 
+allowedOrigins.push(
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174"
+);
+
 app.use(
   cors({
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
