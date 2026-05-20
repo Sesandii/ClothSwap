@@ -35,6 +35,11 @@ const clothesSchema = new mongoose.Schema({
     enum: ["available", "swapped", "hidden"],
     default: "available",
   },
+  approvalStatus: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "approved",
+  },
   receivedFromSwap: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "SwapRequest",

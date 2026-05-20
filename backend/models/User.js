@@ -30,6 +30,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  status: {
+    type: String,
+    enum: ["active", "blocked"],
+    default: "active",
+  },
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
+  },
   createdAt: {
     type: Date,
     default: Date.now,

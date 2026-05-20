@@ -413,6 +413,22 @@ const getMyReviews = async (req, res) => {
   }
 };
 
+const getReviewsReceived = async (req, res) => {
+  try {
+    const reviews = await Review.find({ reviewee: req.user })
+      .populate("reviewer", "name location profilePic")
+      .populate({
+        path: "swapRequest",
+        populate: swapRequestPopulation,
+      })
+      .sort({ createdAt: -1 });
+
+    return res.json(reviews);
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 const createReview = async (req, res) => {
   const { rating, comment } = req.body;
   const numericRating = Number(rating);
@@ -613,5 +629,6 @@ module.exports = {
   updateExchangeMethod,
   respondToExchangeMethod,
   getMyReviews,
+  getReviewsReceived,
   createReview,
 };

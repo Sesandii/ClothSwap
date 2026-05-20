@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { apiFetch } from '../lib/api';
-import { getStoredToken, saveAuth } from '../lib/auth';
+import { getAuthenticatedUser, getStoredToken, saveAuth } from '../lib/auth';
 
 export function Register() {
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +22,8 @@ export function Register() {
 
   useEffect(() => {
     if (getStoredToken()) {
-      navigate('/dashboard', { replace: true });
+      const user = getAuthenticatedUser();
+      navigate(user?.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
     }
   }, [navigate]);
 
@@ -54,7 +55,7 @@ export function Register() {
 
       saveAuth(data.token, data.user);
       toast.success('Account created successfully');
-      navigate('/dashboard');
+      navigate(data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Registration failed');
     } finally {

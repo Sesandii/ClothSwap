@@ -1,8 +1,32 @@
 const Clothes = require("../models/Clothes");
 const SwapRequest = require("../models/SwapRequest");
+const AdminSetting = require("../models/AdminSetting");
+const Category = require("../models/Category");
 const { transferCompletedSwapOwnership } = require("../utils/completeSwapOwnership");
 
 const toObjectId = (value) => value && value.toString();
+const DEFAULT_CATEGORY_SIZES = {
+  Tops: ["XS", "S", "M", "L", "XL", "XXL"],
+  Bottoms: ["XS", "S", "M", "L", "XL", "XXL"],
+  Dresses: ["XS", "S", "M", "L", "XL", "XXL"],
+  Outerwear: ["XS", "S", "M", "L", "XL", "XXL"],
+  Shoes: ["4", "5", "6", "7", "8", "9", "10", "11", "12", "13"],
+  Accessories: ["One Size"],
+  Shirts: ["XS", "S", "M", "L", "XL", "XXL"],
+  Pants: ["XS", "S", "M", "L", "XL", "XXL"],
+  Jackets: ["XS", "S", "M", "L", "XL", "XXL"],
+  Sweaters: ["XS", "S", "M", "L", "XL", "XXL"],
+  Skirts: ["XS", "S", "M", "L", "XL", "XXL"],
+};
+const DEFAULT_CATEGORIES = Object.keys(DEFAULT_CATEGORY_SIZES);
+const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "One Size"];
+
+const normalizeSizes = (sizes, categoryName) => {
+  const source = Array.isArray(sizes) ? sizes : [];
+  const normalized = source.map((size) => String(size).trim()).filter(Boolean);
+
+  return Array.from(new Set(normalized.length > 0 ? normalized : DEFAULT_CATEGORY_SIZES[categoryName] || DEFAULT_SIZES));
+};
 
 const createClothesItem = async (req, res) => {
   const {
@@ -19,6 +43,7 @@ const createClothesItem = async (req, res) => {
   } = req.body;
 
   try {
+    const settings = await AdminSetting.findOne({ key: "main" });
     const newClothes = new Clothes({
       title,
       brand,
@@ -31,6 +56,7 @@ const createClothesItem = async (req, res) => {
       location,
       images,
       user: req.user,
+      approvalStatus: settings?.autoApproveListings === false ? "pending" : "approved",
     });
 
     const savedClothes = await newClothes.save();
@@ -49,6 +75,7 @@ const getAllClothes = async (req, res) => {
   try {
     const clothes = await Clothes.find({
       status: "available",
+      approvalStatus: "approved",
       "images.0": { $exists: true },
     })
       .populate("user", "name location profilePic")
@@ -250,6 +277,40 @@ const relistClothesItem = async (req, res) => {
   }
 };
 
+const getPublicCategories = async (req, res) => {
+  try {
+    const distinctCategories = await Clothes.distinct("category");
+    const existingCategories = await Category.find({
+      name: { $in: [...DEFAULT_CATEGORIES, ...distinctCategories.filter(Boolean)] },
+    }).select("name");
+    const existingNames = new Set(existingCategories.map((category) => category.name));
+    const missingCategories = [...DEFAULT_CATEGORIES, ...distinctCategories.filter(Boolean)]
+      .filter((name, index, names) => names.indexOf(name) === index)
+      .filter((name) => !existingNames.has(name))
+      .map((name) => ({ name, sizes: normalizeSizes(undefined, name) }));
+
+    if (missingCategories.length > 0) {
+      await Category.insertMany(missingCategories, { ordered: false }).catch((error) => {
+        if (error.code !== 11000) {
+          throw error;
+        }
+      });
+    }
+
+    const categories = await Category.find().sort({ name: 1 }).select("name sizes");
+
+    return res.json(
+      categories.map((category) => ({
+        _id: category._id,
+        name: category.name,
+        sizes: normalizeSizes(category.sizes, category.name),
+      }))
+    );
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 const deleteClothesItem = async (req, res) => {
   try {
     const clothesItem = await Clothes.findById(req.params.id);
@@ -273,6 +334,7 @@ const deleteClothesItem = async (req, res) => {
 module.exports = {
   createClothesItem,
   getAllClothes,
+  getPublicCategories,
   getCurrentUserClothes,
   getClothesById,
   updateClothesItem,

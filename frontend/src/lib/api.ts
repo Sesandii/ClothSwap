@@ -147,3 +147,142 @@ export async function markAllNotificationsRead() {
         method: 'PATCH',
     });
 }
+
+// Admin endpoints
+export async function getAdminDashboard() {
+    return apiFetch('/api/admin/dashboard', { method: 'GET' });
+}
+
+export async function getAdminUsers() {
+    return apiFetch('/api/admin/users', { method: 'GET' });
+}
+
+export async function updateAdminUserStatus(userId: string, status: 'active' | 'blocked') {
+    return apiFetch(`/api/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+}
+
+export async function updateAdminUserRole(userId: string, role: 'user' | 'admin') {
+    return apiFetch(`/api/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+    });
+}
+
+export async function deleteAdminUser(userId: string) {
+    return apiFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+}
+
+export async function getAdminClothes() {
+    return apiFetch('/api/admin/clothes', { method: 'GET' });
+}
+
+export async function updateAdminClothesApproval(clothesId: string, approvalStatus: 'pending' | 'approved' | 'rejected') {
+    return apiFetch(`/api/admin/clothes/${clothesId}/approval`, {
+        method: 'PATCH',
+        body: JSON.stringify({ approvalStatus }),
+    });
+}
+
+export async function deleteAdminClothes(clothesId: string) {
+    return apiFetch(`/api/admin/clothes/${clothesId}`, { method: 'DELETE' });
+}
+
+export async function getAdminSwaps() {
+    return apiFetch('/api/admin/swaps', { method: 'GET' });
+}
+
+export async function getAdminComplaints() {
+    return apiFetch('/api/admin/complaints', { method: 'GET' });
+}
+
+export async function updateAdminComplaintStatus(complaintId: string, status: 'pending' | 'investigating' | 'resolved') {
+    return apiFetch(`/api/admin/complaints/${complaintId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+}
+
+export async function updateAdminSwap(swapId: string, payload: Record<string, any>) {
+    return apiFetch(`/api/admin/swaps/${swapId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+}
+
+export async function deleteAdminSwap(swapId: string) {
+    return apiFetch(`/api/admin/swaps/${swapId}`, { method: 'DELETE' });
+}
+
+export async function getAdminCategories() {
+    return apiFetch('/api/admin/categories', { method: 'GET' });
+}
+
+export async function getPublicCategories() {
+    return apiFetch('/api/clothes/categories', { method: 'GET' });
+}
+
+export async function createAdminCategory(name: string, sizes: string[]) {
+    return apiFetch('/api/admin/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name, sizes }),
+    });
+}
+
+export async function updateAdminCategory(categoryId: string, name: string, sizes: string[]) {
+    return apiFetch(`/api/admin/categories/${categoryId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name, sizes }),
+    });
+}
+
+export async function deleteAdminCategory(categoryId: string) {
+    return apiFetch(`/api/admin/categories/${categoryId}`, { method: 'DELETE' });
+}
+
+export async function getAdminReviews() {
+    return apiFetch('/api/admin/reviews', { method: 'GET' });
+}
+
+export async function deleteAdminReview(reviewId: string) {
+    return apiFetch(`/api/admin/reviews/${reviewId}`, { method: 'DELETE' });
+}
+
+export async function getAdminSettings() {
+    return apiFetch('/api/admin/settings', { method: 'GET' });
+}
+
+export async function getCollectionPoints() {
+    return apiFetch('/api/collection-points', { method: 'GET' });
+}
+
+export async function getPublicSettings() {
+    return apiFetch('/api/settings/public', { method: 'GET' });
+}
+
+export async function updateAdminSettings(payload: Record<string, any>) {
+    return apiFetch('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+}
+
+export async function createAdminCollectionPoint(payload: Record<string, any>) {
+    return apiFetch('/api/admin/collection-points', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+}
+
+export async function updateAdminCollectionPoint(pointId: string, payload: Record<string, any>) {
+    return apiFetch(`/api/admin/collection-points/${pointId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+}
+
+export async function deleteAdminCollectionPoint(pointId: string) {
+    return apiFetch(`/api/admin/collection-points/${pointId}`, { method: 'DELETE' });
+}

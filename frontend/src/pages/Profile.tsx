@@ -1,23 +1,56 @@
 import React, { useEffect, useState } from 'react';
 import { Camera, MapPin, Star, Calendar, Package } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  swapRequests,
-  reviews,
-  clothes,
-  users
-} from
-  '../data/mockData';
 import { getAuthenticatedUser, getAvatarUrl, getInitials, isRealProfilePic } from '../lib/auth';
-import { getCurrentUser, updateCurrentUser, getMyClothes } from '../lib/api';
+import { apiFetch, getCurrentUser, updateCurrentUser, getMyClothes } from '../lib/api';
 import { StatusBadge } from '../components/StatusBadge';
 type TabType = 'edit' | 'history' | 'reviews';
+
+type UserRef = {
+  _id?: string;
+  name?: string;
+  profilePic?: string;
+};
+
+type ClothesRef = {
+  _id?: string;
+  title?: string;
+  images?: string[];
+  user?: UserRef | string;
+};
+
+type SwapRef = {
+  _id: string;
+  requester?: UserRef | string;
+  offeredOwner?: UserRef | string;
+  requestedOwner?: UserRef | string;
+  offeredClothes?: ClothesRef;
+  requestedClothes?: ClothesRef;
+  status: string;
+  createdAt: string;
+};
+
+type ReviewRef = {
+  _id: string;
+  reviewer?: UserRef;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+};
+
+const placeholderImage =
+  'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
+
+const getRefId = (value?: UserRef | string) =>
+  typeof value === 'string' ? value : value?._id || '';
 
 export function Profile() {
   const [activeTab, setActiveTab] = useState<TabType>('edit');
   const storedUser = getAuthenticatedUser();
   const [profileUser, setProfileUser] = useState<any>(storedUser);
   const [myClothesCount, setMyClothesCount] = useState<number>(0);
+  const [completedSwaps, setCompletedSwaps] = useState<SwapRef[]>([]);
+  const [myReviews, setMyReviews] = useState<ReviewRef[]>([]);
   const [formData, setFormData] = useState({
     name: storedUser?.name || '',
     email: storedUser?.email || '',
@@ -73,13 +106,52 @@ export function Profile() {
 
     return () => { mounted = false; };
   }, [userId]);
-  const completedSwaps = swapRequests.filter(
-    (s) =>
-      s.status === 'completed' && (
-        s.requesterId === userId ||
-        clothes.find((c) => c.id === s.requestedItemId)?.ownerId === userId)
-  );
-  const myReviews = reviews.filter((r) => r.revieweeId === userId);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      if (!userId) return;
+
+      try {
+        const [swapsResponse, reviewsResponse] = await Promise.all([
+          apiFetch('/api/swapRequests/mine'),
+          apiFetch('/api/swapRequests/reviews/received')
+        ]);
+        const swapsData = await swapsResponse.json();
+        const reviewsData = await reviewsResponse.json();
+
+        if (!mounted) return;
+
+        if (swapsResponse.ok && Array.isArray(swapsData)) {
+          setCompletedSwaps(swapsData.filter((swap: SwapRef) => swap.status === 'completed'));
+        }
+
+        if (reviewsResponse.ok && Array.isArray(reviewsData)) {
+          setMyReviews(reviewsData);
+        }
+      } catch {
+        // Profile still renders editable account information if history fails.
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [userId]);
+
+  const getSwapPartner = (swap: SwapRef) => {
+    const offeredOwnerId = getRefId(swap.offeredOwner) || getRefId(swap.requester);
+    const requestedOwnerId = getRefId(swap.requestedOwner);
+
+    if (userId === offeredOwnerId) {
+      return typeof swap.requestedOwner === 'object' ? swap.requestedOwner : undefined;
+    }
+
+    if (userId === requestedOwnerId) {
+      return typeof swap.offeredOwner === 'object' ? swap.offeredOwner : typeof swap.requester === 'object' ? swap.requester : undefined;
+    }
+
+    return typeof swap.requester === 'object' ? swap.requester : undefined;
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,7 +237,7 @@ export function Profile() {
         <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-warmGray-100 text-center">
           <div>
             <p className="text-2xl font-bold text-warmGray-900">
-              {myClothesCount || clothes.filter((c) => c.ownerId === userId).length}
+              {myClothesCount}
             </p>
             <p className="text-sm text-warmGray-500">Items Listed</p>
           </div>
@@ -314,32 +386,23 @@ export function Profile() {
               </div> :
 
               completedSwaps.map((swap) => {
-                const requestedItem = clothes.find(
-                  (c) => c.id === swap.requestedItemId
-                );
-                const offeredItem = clothes.find(
-                  (c) => c.id === swap.offeredItemId
-                );
-                const otherUserId =
-                  swap.requesterId === userId ?
-                    requestedItem?.ownerId :
-                    swap.requesterId;
-                const otherUser = users.find((u) => u.id === otherUserId);
-                if (!requestedItem || !offeredItem || !otherUser) return null;
+                const requestedItem = swap.requestedClothes;
+                const offeredItem = swap.offeredClothes;
+                const otherUser = getSwapPartner(swap);
                 return (
                   <div
-                    key={swap.id}
+                    key={swap._id}
                     className="flex items-center justify-between p-4 border border-warmGray-100 rounded-xl hover:bg-warmGray-50 transition-colors">
 
                     <div className="flex items-center gap-4">
                       <div className="flex -space-x-4">
                         <img
-                          src={offeredItem.images[0]}
+                          src={offeredItem?.images?.[0] || placeholderImage}
                           alt=""
                           className="w-12 h-12 rounded-lg object-cover border-2 border-white" />
 
                         <img
-                          src={requestedItem.images[0]}
+                          src={requestedItem?.images?.[0] || placeholderImage}
                           alt=""
                           className="w-12 h-12 rounded-lg object-cover border-2 border-white" />
 
@@ -369,10 +432,10 @@ export function Profile() {
               </div> :
 
               myReviews.map((review) => {
-                const reviewer = users.find((u) => u.id === review.reviewerId);
+                const reviewer = review.reviewer;
                 return (
                   <div
-                    key={review.id}
+                    key={review._id}
                     className="border-b border-warmGray-100 last:border-0 pb-6 last:pb-0">
 
                     <div className="flex items-center justify-between mb-2">

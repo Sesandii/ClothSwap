@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Eye, CheckCircle, Search as SearchIcon } from 'lucide-react';
-import { complaints, users } from '../../data/mockData';
 import { StatusBadge } from '../../components/StatusBadge';
 import { toast } from 'sonner';
+import { getAdminComplaints, updateAdminComplaintStatus } from '../../lib/api';
+import { getAvatarUrl } from '../../lib/auth';
+import { AdminDetailModal } from '../../components/AdminDetailModal';
 export function ComplaintManagement() {
   const [activeTab, setActiveTab] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All Types');
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedComplaint, setSelectedComplaint] = useState<any | null>(null);
   const tabs = ['All', 'Pending', 'Investigating', 'Resolved'];
   const types = [
   'All Types',
@@ -17,19 +21,46 @@ export function ComplaintManagement() {
   'user_no_show',
   'bad_behavior'];
 
-  const [complaintList, setComplaintList] = useState(complaints);
-  const handleAction = (id: string, action: 'investigating' | 'resolved') => {
-    setComplaintList((prev) =>
-    prev.map((c) =>
-    c.id === id ?
-    {
-      ...c,
-      status: action
-    } :
-    c
-    )
-    );
-    toast.success(`Complaint marked as ${action}`);
+  const [complaintList, setComplaintList] = useState<any[]>([]);
+  useEffect(() => {
+    const loadComplaints = async () => {
+      try {
+        const response = await getAdminComplaints();
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to load complaints');
+        }
+
+        setComplaintList(data);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to load complaints');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadComplaints();
+  }, []);
+  const handleAction = async (id: string, action: 'investigating' | 'resolved') => {
+    try {
+      const response = await updateAdminComplaintStatus(id, action);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to update complaint');
+      }
+
+      setComplaintList((prev) =>
+        prev.map((c) => (c._id === id ? data : c))
+      );
+      toast.success(`Complaint marked as ${action}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to update complaint');
+    }
+  };
+  const handleView = (complaint: any) => {
+    setSelectedComplaint(complaint);
   };
   const filteredComplaints = complaintList.filter((c) => {
     const matchesTab =
@@ -87,16 +118,16 @@ export function ComplaintManagement() {
             </thead>
             <tbody className="divide-y divide-warmGray-100">
               {filteredComplaints.map((complaint) => {
-                const user = users.find((u) => u.id === complaint.userId);
+                const user = complaint.user;
                 return (
                   <tr
-                    key={complaint.id}
+                    key={complaint._id}
                     className="hover:bg-warmGray-50 transition-colors">
                     
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <img
-                          src={user?.avatar}
+                          src={getAvatarUrl(user)}
                           alt=""
                           className="w-8 h-8 rounded-full" />
                         
@@ -124,6 +155,7 @@ export function ComplaintManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => handleView(complaint)}
                           className="p-2 text-warmGray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                           title="View Details">
                           
@@ -132,7 +164,7 @@ export function ComplaintManagement() {
                         {complaint.status === 'pending' &&
                         <button
                           onClick={() =>
-                          handleAction(complaint.id, 'investigating')
+                          handleAction(complaint._id, 'investigating')
                           }
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Investigate">
@@ -143,7 +175,7 @@ export function ComplaintManagement() {
                         {complaint.status !== 'resolved' &&
                         <button
                           onClick={() =>
-                          handleAction(complaint.id, 'resolved')
+                          handleAction(complaint._id, 'resolved')
                           }
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Mark Resolved">
@@ -159,12 +191,32 @@ export function ComplaintManagement() {
             </tbody>
           </table>
         </div>
-        {filteredComplaints.length === 0 &&
+        {isLoading &&
+        <div className="p-8 text-center text-warmGray-500">
+            Loading complaints...
+          </div>
+        }
+        {!isLoading && filteredComplaints.length === 0 &&
         <div className="p-8 text-center text-warmGray-500">
             No complaints found.
           </div>
         }
       </div>
+      <AdminDetailModal
+        isOpen={Boolean(selectedComplaint)}
+        title="Complaint Details"
+        subtitle={selectedComplaint?.user?.name}
+        imageUrl={getAvatarUrl(selectedComplaint?.user)}
+        onClose={() => setSelectedComplaint(null)}
+        details={[
+          { label: 'Complainant', value: selectedComplaint?.user?.name },
+          { label: 'Email', value: selectedComplaint?.user?.email },
+          { label: 'Type', value: selectedComplaint?.type?.replace(/_/g, ' ') },
+          { label: 'Status', value: selectedComplaint?.status },
+          { label: 'Date', value: selectedComplaint ? new Date(selectedComplaint.createdAt).toLocaleString() : undefined },
+          { label: 'Description', value: selectedComplaint?.description }
+        ]}
+      />
     </motion.div>);
 
 }

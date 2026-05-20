@@ -2,8 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-const createToken = (userId) =>
-  jwt.sign({ userId }, process.env.JWT_SECRET, {
+const createToken = (userId, role = "user") =>
+  jwt.sign({ userId, role }, process.env.JWT_SECRET, {
     expiresIn: "1h",
   });
 
@@ -28,7 +28,7 @@ const registerUser = async (req, res) => {
     });
 
     const savedUser = await newUser.save();
-    const token = createToken(savedUser._id);
+    const token = createToken(savedUser._id, savedUser.role);
 
     return res.status(201).json({
       message: "User registered successfully",
@@ -40,6 +40,7 @@ const registerUser = async (req, res) => {
         phone: savedUser.phone,
         location: savedUser.location,
         profilePic: savedUser.profilePic,
+        role: savedUser.role,
       },
     });
   } catch (err) {
@@ -57,13 +58,18 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    if (user.status === "blocked") {
+      return res.status(403).json({ message: "Your account has been blocked" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = createToken(user._id);
+    const role = user.role || "user";
+    const token = createToken(user._id, role);
 
     return res.json({
       token,
@@ -74,6 +80,7 @@ const loginUser = async (req, res) => {
         phone: user.phone,
         location: user.location,
         profilePic: user.profilePic,
+        role,
       },
     });
   } catch (err) {
@@ -84,7 +91,7 @@ const loginUser = async (req, res) => {
 const getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.user).select(
-      "name email phone location profilePic createdAt"
+      "name email phone location profilePic role createdAt"
     );
 
     if (!user) {

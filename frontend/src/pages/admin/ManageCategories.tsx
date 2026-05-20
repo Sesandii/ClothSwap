@@ -1,55 +1,94 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Check, X } from 'lucide-react';
-import { categories as initialCategories, clothes } from '../../data/mockData';
 import { toast } from 'sonner';
+import {
+  createAdminCategory,
+  deleteAdminCategory,
+  getAdminCategories,
+  updateAdminCategory
+} from '../../lib/api';
+type Category = {
+  _id: string;
+  name: string;
+  sizes: string[];
+  itemsCount: number;
+};
 export function ManageCategories() {
-  const [categories, setCategories] = useState(
-    initialCategories.map((c, i) => ({
-      id: `cat-${i}`,
-      name: c
-    }))
-  );
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [newSizes, setNewSizes] = useState('XS, S, M, L, XL, XXL');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const handleAdd = () => {
+  const [editSizes, setEditSizes] = useState('');
+  const parseSizes = (value: string) =>
+    Array.from(new Set(value.split(',').map((size) => size.trim()).filter(Boolean)));
+  useEffect(() => {
+    const loadCategories = async () => {
+      const response = await getAdminCategories();
+      const data = await response.json();
+
+      if (response.ok) {
+        setCategories(data);
+      }
+    };
+
+    loadCategories();
+  }, []);
+  const handleAdd = async () => {
     if (!newCategory.trim()) return;
-    setCategories([
-    ...categories,
-    {
-      id: `cat-${Date.now()}`,
-      name: newCategory.trim()
-    }]
-    );
-    setNewCategory('');
-    setIsAdding(false);
-    toast.success('Category added');
-  };
-  const handleSaveEdit = (id: string) => {
-    if (!editName.trim()) return;
-    setCategories(
-      categories.map((c) =>
-      c.id === id ?
-      {
-        ...c,
-        name: editName.trim()
-      } :
-      c
-      )
-    );
-    setEditingId(null);
-    toast.success('Category updated');
-  };
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
-      setCategories(categories.filter((c) => c.id !== id));
-      toast.success('Category deleted');
+    try {
+      const response = await createAdminCategory(newCategory.trim(), parseSizes(newSizes));
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to add category');
+      }
+
+      setCategories([...categories, data]);
+      setNewCategory('');
+      setNewSizes('XS, S, M, L, XL, XXL');
+      setIsAdding(false);
+      toast.success('Category added');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to add category');
     }
   };
-  const getCount = (catName: string) =>
-  clothes.filter((c) => c.category === catName).length;
+  const handleSaveEdit = async (id: string) => {
+    if (!editName.trim()) return;
+    try {
+      const response = await updateAdminCategory(id, editName.trim(), parseSizes(editSizes));
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to update category');
+      }
+
+      setCategories(categories.map((c) => (c._id === id ? data : c)));
+      setEditingId(null);
+      toast.success('Category updated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to update category');
+    }
+  };
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      try {
+        const response = await deleteAdminCategory(id);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to delete category');
+        }
+
+        setCategories(categories.filter((c) => c._id !== id));
+        toast.success('Category deleted');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to delete category');
+      }
+    }
+  };
   return (
     <motion.div
       initial={{
@@ -78,6 +117,7 @@ export function ManageCategories() {
           <thead className="bg-warmGray-50 text-warmGray-500 border-b border-warmGray-100">
             <tr>
               <th className="px-6 py-4 font-medium">Category Name</th>
+              <th className="px-6 py-4 font-medium">Default Sizes</th>
               <th className="px-6 py-4 font-medium">Items Count</th>
               <th className="px-6 py-4 font-medium text-right">Actions</th>
             </tr>
@@ -87,14 +127,21 @@ export function ManageCategories() {
             <tr className="bg-primary-50">
                 <td className="px-6 py-4">
                   <input
-                  type="text"
-                  autoFocus
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="Category name..."
-                  className="w-full px-3 py-1.5 rounded-lg border border-primary-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
-                
+                    type="text"
+                    autoFocus
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="Category name..."
+                    className="w-full px-3 py-1.5 rounded-lg border border-primary-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
+                </td>
+                <td className="px-6 py-4">
+                  <input
+                    type="text"
+                    value={newSizes}
+                    onChange={(e) => setNewSizes(e.target.value)}
+                    placeholder="XS, S, M, L..."
+                    className="w-full px-3 py-1.5 rounded-lg border border-primary-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none" />
                 </td>
                 <td className="px-6 py-4 text-warmGray-400">0</td>
                 <td className="px-6 py-4">
@@ -118,11 +165,11 @@ export function ManageCategories() {
 
             {categories.map((cat) =>
             <tr
-              key={cat.id}
+              key={cat._id}
               className="hover:bg-warmGray-50 transition-colors">
               
                 <td className="px-6 py-4">
-                  {editingId === cat.id ?
+                  {editingId === cat._id ?
                 <input
                   type="text"
                   autoFocus
@@ -130,7 +177,7 @@ export function ManageCategories() {
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full px-3 py-1.5 rounded-lg border border-primary-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
                   onKeyDown={(e) =>
-                  e.key === 'Enter' && handleSaveEdit(cat.id)
+                  e.key === 'Enter' && handleSaveEdit(cat._id)
                   } /> :
 
 
@@ -139,15 +186,38 @@ export function ManageCategories() {
                     </span>
                 }
                 </td>
+                <td className="px-6 py-4">
+                  {editingId === cat._id ?
+                <input
+                  type="text"
+                  value={editSizes}
+                  onChange={(e) => setEditSizes(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-primary-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
+                  onKeyDown={(e) =>
+                  e.key === 'Enter' && handleSaveEdit(cat._id)
+                  } /> :
+
+
+                <div className="flex flex-wrap gap-1">
+                      {(cat.sizes || []).map((size) =>
+                  <span
+                    key={size}
+                    className="px-2 py-0.5 rounded-full bg-warmGray-100 text-warmGray-600 text-xs">
+                          {size}
+                        </span>
+                  )}
+                    </div>
+                }
+                </td>
                 <td className="px-6 py-4 text-warmGray-600">
-                  {getCount(cat.name)} items
+                  {cat.itemsCount} items
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    {editingId === cat.id ?
+                    {editingId === cat._id ?
                   <>
                         <button
-                      onClick={() => handleSaveEdit(cat.id)}
+                      onClick={() => handleSaveEdit(cat._id)}
                       className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg">
                       
                           <Check size={18} />
@@ -163,15 +233,16 @@ export function ManageCategories() {
                   <>
                         <button
                       onClick={() => {
-                        setEditingId(cat.id);
+                        setEditingId(cat._id);
                         setEditName(cat.name);
+                        setEditSizes((cat.sizes || []).join(', '));
                       }}
                       className="p-2 text-warmGray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                       
                           <Edit2 size={18} />
                         </button>
                         <button
-                      onClick={() => handleDelete(cat.id)}
+                      onClick={() => handleDelete(cat._id)}
                       className="p-2 text-warmGray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       
                           <Trash2 size={18} />

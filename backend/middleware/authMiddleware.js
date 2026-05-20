@@ -14,6 +14,11 @@ const authMiddleware = (req, res, next) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role && decoded.role !== "user") {
+      return res.status(403).json({ message: "User access required" });
+    }
+
     req.user = decoded.userId; // Attach userId from the token to request object
     next(); // Call the next middleware or route handler
   } catch (error) {

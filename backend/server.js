@@ -69,6 +69,9 @@ const favoritesRoutes = require("./routes/favoritesRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const complaintRoutes = require("./routes/complaintRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const collectionPointRoutes = require("./routes/collectionPointRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/clothes", clothesRoutes);
@@ -77,6 +80,9 @@ app.use("/api/favorites", favoritesRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/complaints", complaintRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/collection-points", collectionPointRoutes);
+app.use("/api/settings", settingsRoutes);
 
 app.use((err, req, res, next) => {
   if (err.type === "entity.too.large") {

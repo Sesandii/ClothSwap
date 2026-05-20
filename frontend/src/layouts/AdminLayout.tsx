@@ -17,7 +17,7 @@ import {
   Search } from
 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { currentUser } from '../data/mockData';
+import { getAuthenticatedUser, getAvatarUrl, logout } from '../lib/auth';
 const navItems = [
 {
   path: '/admin/dashboard',
@@ -72,8 +72,10 @@ export function AdminLayout() {
   const currentTitle =
   navItems.find((item) => item.path === location.pathname)?.label ||
   'Admin Portal';
+  const adminUser = getAuthenticatedUser();
   const handleLogout = () => {
-    navigate('/admin/login');
+    logout();
+    navigate('/login');
   };
   return (
     <div className="flex h-screen bg-warmGray-50 overflow-hidden font-sans">
@@ -185,10 +187,12 @@ export function AdminLayout() {
                 <p className="text-sm font-medium text-warmGray-900">
                   Admin User
                 </p>
-                <p className="text-xs text-warmGray-500">Super Admin</p>
+                <p className="text-xs text-warmGray-500">
+                  {adminUser?.email || 'Super Admin'}
+                </p>
               </div>
               <img
-                src={currentUser.avatar}
+                src={getAvatarUrl(adminUser, '292524')}
                 alt="Admin"
                 className="w-9 h-9 rounded-full border border-warmGray-200" />
               

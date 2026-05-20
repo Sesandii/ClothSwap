@@ -5,6 +5,7 @@ export type StoredUser = {
     _id?: string;
     name: string;
     email: string;
+    role?: 'user' | 'admin';
     phone?: string;
     location?: string;
     profilePic?: string;
@@ -140,6 +141,12 @@ export function getAuthenticatedUser(): StoredUser | null {
     } catch {
         return null;
     }
+}
+
+export function isAdminAuthenticated() {
+    const user = getAuthenticatedUser();
+
+    return user?.role === 'admin';
 }
 
 export function logout() {

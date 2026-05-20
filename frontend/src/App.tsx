@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { getStoredToken } from './lib/auth';
+import { getStoredToken, isAdminAuthenticated } from './lib/auth';
 // Layouts
 import { UserLayout } from './layouts/UserLayout';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -25,7 +25,6 @@ import { Reviews } from './pages/Reviews';
 import { Complaints } from './pages/Complaints';
 import { Notifications } from './pages/Notifications';
 // Admin Pages
-import { AdminLogin } from './pages/admin/AdminLogin';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { ManageUsers } from './pages/admin/ManageUsers';
 import { ManageClothes } from './pages/admin/ManageClothes';
@@ -40,6 +39,10 @@ function RequireAuth() {
   return getStoredToken() ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
+function RequireAdminAuth() {
+  return isAdminAuthenticated() ? <Outlet /> : <Navigate to="/login" replace />;
+}
+
 export function App() {
   return (
     <>
@@ -49,7 +52,7 @@ export function App() {
           {/* Auth Routes (no layout) */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
           {/* User Routes */}
           <Route path="/" element={<UserLayout />}>
@@ -79,16 +82,19 @@ export function App() {
           </Route>
 
           {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="users" element={<ManageUsers />} />
-            <Route path="clothes" element={<ManageClothes />} />
-            <Route path="categories" element={<ManageCategories />} />
-            <Route path="swaps" element={<ManageSwaps />} />
-            <Route path="exchange" element={<ExchangeManagement />} />
-            <Route path="complaints" element={<ComplaintManagement />} />
-            <Route path="feedback" element={<FeedbackManagement />} />
-            <Route path="settings" element={<AdminSettings />} />
+          <Route path="/admin" element={<RequireAdminAuth />}>
+            <Route element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="users" element={<ManageUsers />} />
+              <Route path="clothes" element={<ManageClothes />} />
+              <Route path="categories" element={<ManageCategories />} />
+              <Route path="swaps" element={<ManageSwaps />} />
+              <Route path="exchange" element={<ExchangeManagement />} />
+              <Route path="complaints" element={<ComplaintManagement />} />
+              <Route path="feedback" element={<FeedbackManagement />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

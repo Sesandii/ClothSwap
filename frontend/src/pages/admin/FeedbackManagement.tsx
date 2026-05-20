@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Trash2, Star } from 'lucide-react';
-import { reviews, users } from '../../data/mockData';
 import { toast } from 'sonner';
+import { deleteAdminReview, getAdminReviews } from '../../lib/api';
+import { getAvatarUrl } from '../../lib/auth';
 import {
   BarChart,
   Bar,
@@ -14,15 +15,38 @@ import {
 export function FeedbackManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState('All');
-  const [reviewList, setReviewList] = useState(reviews);
-  const handleDelete = (id: string) => {
+  const [reviewList, setReviewList] = useState<any[]>([]);
+  useEffect(() => {
+    const loadReviews = async () => {
+      const response = await getAdminReviews();
+      const data = await response.json();
+
+      if (response.ok) {
+        setReviewList(data);
+      }
+    };
+
+    loadReviews();
+  }, []);
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to remove this review?')) {
-      setReviewList((prev) => prev.filter((r) => r.id !== id));
-      toast.success('Review removed');
+      try {
+        const response = await deleteAdminReview(id);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to remove review');
+        }
+
+        setReviewList((prev) => prev.filter((r) => r._id !== id));
+        toast.success('Review removed');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to remove review');
+      }
     }
   };
   const filteredReviews = reviewList.filter((r) => {
-    const reviewer = users.find((u) => u.id === r.reviewerId)?.name || '';
+    const reviewer = r.reviewer?.name || '';
     const matchesSearch = reviewer.
     toLowerCase().
     includes(searchTerm.toLowerCase());
@@ -30,9 +54,9 @@ export function FeedbackManagement() {
     ratingFilter === 'All' || r.rating.toString() === ratingFilter;
     return matchesSearch && matchesRating;
   });
-  const avgRating = (
-  reviewList.reduce((acc, r) => acc + r.rating, 0) / reviewList.length).
-  toFixed(1);
+  const avgRating = reviewList.length
+    ? (reviewList.reduce((acc, r) => acc + r.rating, 0) / reviewList.length).toFixed(1)
+    : '0.0';
   const distributionData = [5, 4, 3, 2, 1].map((stars) => ({
     name: `${stars} Stars`,
     count: reviewList.filter((r) => r.rating === stars).length
@@ -147,17 +171,17 @@ export function FeedbackManagement() {
             </thead>
             <tbody className="divide-y divide-warmGray-100">
               {filteredReviews.map((review) => {
-                const reviewer = users.find((u) => u.id === review.reviewerId);
-                const reviewee = users.find((u) => u.id === review.revieweeId);
+                const reviewer = review.reviewer;
+                const reviewee = review.reviewee;
                 return (
                   <tr
-                    key={review.id}
+                    key={review._id}
                     className="hover:bg-warmGray-50 transition-colors">
                     
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <img
-                          src={reviewer?.avatar}
+                          src={getAvatarUrl(reviewer)}
                           alt=""
                           className="w-8 h-8 rounded-full" />
                         
@@ -169,7 +193,7 @@ export function FeedbackManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <img
-                          src={reviewee?.avatar}
+                          src={getAvatarUrl(reviewee, '292524')}
                           alt=""
                           className="w-6 h-6 rounded-full" />
                         
@@ -204,7 +228,7 @@ export function FeedbackManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end">
                         <button
-                          onClick={() => handleDelete(review.id)}
+                          onClick={() => handleDelete(review._id)}
                           className="p-2 text-warmGray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Remove Review">
                           

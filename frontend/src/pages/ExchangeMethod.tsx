@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, Truck, Building, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiFetch } from '../lib/api';
-import { collectionPoints } from '../data/mockData';
+import { apiFetch, getCollectionPoints } from '../lib/api';
 import { getStoredUser } from '../lib/auth';
 
 type MethodType = 'meetup' | 'delivery' | 'collection';
@@ -35,6 +34,13 @@ type SwapRequestItem = {
   exchangeMethod?: ExchangeMethodState;
 };
 
+type CollectionPoint = {
+  _id: string;
+  name: string;
+  address: string;
+  hours: string;
+};
+
 const placeholderImage =
   'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
 
@@ -62,6 +68,8 @@ export function ExchangeMethod() {
     collectionPoint: ''
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [collectionPoints, setCollectionPoints] = useState<CollectionPoint[]>([]);
+  const [isLoadingCollectionPoints, setIsLoadingCollectionPoints] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const minMeetupDate = todayInputValue();
@@ -101,6 +109,28 @@ export function ExchangeMethod() {
 
     void loadSwap();
   }, [id]);
+
+  useEffect(() => {
+    const loadCollectionPoints = async () => {
+      try {
+        setIsLoadingCollectionPoints(true);
+        const response = await getCollectionPoints();
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to load collection points');
+        }
+
+        setCollectionPoints(data);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to load collection points');
+      } finally {
+        setIsLoadingCollectionPoints(false);
+      }
+    };
+
+    void loadCollectionPoints();
+  }, []);
 
   if (isLoading) {
     return <div className="p-8 text-center text-warmGray-500">Loading exchange...</div>;
@@ -334,11 +364,21 @@ export function ExchangeMethod() {
               >
                 <option value="">Choose a location...</option>
                 {collectionPoints.map((cp) => (
-                  <option key={cp.id} value={cp.name}>
-                    {cp.name} - {cp.address}
+                  <option key={cp._id} value={`${cp.name} - ${cp.address}`}>
+                    {cp.name} - {cp.address} ({cp.hours})
                   </option>
                 ))}
               </select>
+              {isLoadingCollectionPoints && (
+                <span className="block mt-2 text-xs text-warmGray-500">
+                  Loading collection points...
+                </span>
+              )}
+              {!isLoadingCollectionPoints && collectionPoints.length === 0 && (
+                <span className="block mt-2 text-xs text-red-600">
+                  No collection points are available yet.
+                </span>
+              )}
             </label>
           </div>
         </MethodOption>

@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { categories, sizes, genders, conditions, categorySizes } from '../data/mockData';
-import { apiFetch } from '../lib/api';
+import { sizes, genders, conditions } from '../data/mockData';
+import { apiFetch, getPublicCategories, getPublicSettings } from '../lib/api';
 import { getStoredUser, getStoredToken } from '../lib/auth';
 
 type ClothesItemResponse = {
@@ -24,8 +24,15 @@ type ClothesItemResponse = {
   } | string;
 };
 
+type CategoryOption = {
+  _id: string;
+  name: string;
+  sizes: string[];
+};
+
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 1200;
+const DEFAULT_MAX_IMAGES = 4;
 const IMAGE_QUALITY = 0.82;
 
 const readResponseJson = async <T,>(response: Response): Promise<T | null> => {
@@ -84,6 +91,8 @@ export function AddClothes() {
   const isEditMode = Boolean(id);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [maxImages, setMaxImages] = useState(DEFAULT_MAX_IMAGES);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingItem, setIsLoadingItem] = useState(isEditMode);
   const [formData, setFormData] = useState({
@@ -97,6 +106,27 @@ export function AddClothes() {
     description: '',
     location: currentUser.location || ''
   });
+
+  useEffect(() => {
+    const loadPageData = async () => {
+      const [categoriesResponse, settingsResponse] = await Promise.all([
+        getPublicCategories(),
+        getPublicSettings()
+      ]);
+      const categoriesData = await categoriesResponse.json();
+      const settingsData = await settingsResponse.json();
+
+      if (categoriesResponse.ok) {
+        setCategoryOptions(categoriesData);
+      }
+
+      if (settingsResponse.ok && Number(settingsData.maxImagesPerListing) > 0) {
+        setMaxImages(Number(settingsData.maxImagesPerListing));
+      }
+    };
+
+    loadPageData();
+  }, []);
 
   useEffect(() => {
     const loadItemForEdit = async () => {
@@ -167,7 +197,7 @@ export function AddClothes() {
     const files = e.target.files;
     if (!files) return;
 
-    const remainingSlots = 4 - images.length;
+    const remainingSlots = maxImages - images.length;
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
     const processedImages: string[] = [];
 
@@ -190,7 +220,7 @@ export function AddClothes() {
     }
 
     if (processedImages.length > 0) {
-      setImages((prev) => [...prev, ...processedImages].slice(0, 4));
+      setImages((prev) => [...prev, ...processedImages].slice(0, maxImages));
     }
 
     if (fileInputRef.current) {
@@ -227,7 +257,9 @@ export function AddClothes() {
     if (!formData.category) {
       return [];
     }
-    return categorySizes[formData.category] || [];
+    const selectedCategory = categoryOptions.find((category) => category.name === formData.category);
+
+    return selectedCategory?.sizes?.length ? selectedCategory.sizes : sizes;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -325,7 +357,7 @@ export function AddClothes() {
                   </button>
                 </div>
               ))}
-              {images.length < 4 && (
+              {images.length < maxImages && (
                 <button
                   type="button"
                   onClick={handleImageUpload}
@@ -339,7 +371,7 @@ export function AddClothes() {
               )}
             </div>
             <p className="text-xs text-warmGray-500 mt-2">
-              Add up to 4 photos. First photo will be the cover image.
+              Add up to {maxImages} photos. First photo will be the cover image.
             </p>
           </div>
 
@@ -377,9 +409,9 @@ export function AddClothes() {
                   required
                 >
                   <option value="">Select category</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                  {categoryOptions.map((cat) => (
+                    <option key={cat._id || cat.name} value={cat.name}>
+                      {cat.name}
                     </option>
                   ))}
                 </select>

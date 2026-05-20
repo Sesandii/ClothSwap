@@ -3,12 +3,11 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClothesCard } from '../components/ClothesCard';
 import {
-    categories,
     sizes,
     genders,
     conditions
 } from '../data/mockData';
-import { apiFetch, toggleFavorite } from '../lib/api';
+import { apiFetch, getPublicCategories, toggleFavorite } from '../lib/api';
 import { getStoredToken, getStoredUser } from '../lib/auth';
 
 type ClothesUser = {
@@ -48,6 +47,12 @@ type BrowseItem = {
     userId: string;
 };
 
+type CategoryOption = {
+    _id: string;
+    name: string;
+    sizes: string[];
+};
+
 const placeholderImage =
     'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800';
 
@@ -62,6 +67,7 @@ export function BrowseClothes() {
     const [showFilters, setShowFilters] = useState(false);
     const [favoritedItems, setFavoritedItems] = useState<string[]>([]);
     const [items, setItems] = useState<BrowseItem[]>([]);
+    const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -119,9 +125,21 @@ export function BrowseClothes() {
                 console.error('Error loading favorites:', err);
             }
         };
+        const loadCategories = async () => {
+            try {
+                const response = await getPublicCategories();
+                if (response.ok) {
+                    const data = (await response.json()) as CategoryOption[];
+                    setCategoryOptions(data);
+                }
+            } catch (err) {
+                console.error('Error loading categories:', err);
+            }
+        };
 
         loadClothes();
         loadFavorites();
+        loadCategories();
     }, []);
 
     const filteredClothes = useMemo(() => {
@@ -311,16 +329,16 @@ export function BrowseClothes() {
                                         Category
                                     </h4>
                                     <div className="space-y-2">
-                                        {categories.map((category) => (
-                                            <label key={category} className="flex items-center cursor-pointer">
+                                        {categoryOptions.map((category) => (
+                                            <label key={category._id || category.name} className="flex items-center cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedCategories.includes(category)}
-                                                    onChange={() => toggleCategory(category)}
+                                                    checked={selectedCategories.includes(category.name)}
+                                                    onChange={() => toggleCategory(category.name)}
                                                     className="rounded border-warmGray-300 text-primary-500 focus:ring-primary-500" />
 
                                                 <span className="ml-2 text-sm text-warmGray-700">
-                                                    {category}
+                                                    {category.name}
                                                 </span>
                                             </label>
                                         ))}
